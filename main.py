@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QStackedWidget, QHBoxLayout
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QStackedWidget, QHBoxLayout, QLabel
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPixmap
 import sys
 
 # Import the individual pages from their respective files
@@ -20,17 +20,45 @@ class MainWindow(QMainWindow):
         # Set main window properties
         self.setWindowTitle("Inferno App")
         self.setGeometry(200, 200, 1200, 800)
+        self.setWindowIcon(QIcon('icons/inferno_symbol.png'))
 
         # Main layout that will hold the sidebar and the content area
         self.main_layout = QHBoxLayout()
         self.main_layout.setContentsMargins(0, 0, 0, 0)  # No margins around the main layout
 
 
-        ### SIDEBAR WITH BUTTONS AND ICONS ###
+       ### SIDEBAR WITH ICON AND TEXT ###
 
         # Create a sidebar layout
         self.sidebar_layout = QVBoxLayout()
         self.sidebar_layout.setSpacing(25)  # Space between sidebar buttons
+
+        # Add a horizontal layout for the app icon and text at the top of the sidebar
+        sidebar_header_layout = QHBoxLayout()
+        sidebar_header_layout.setSpacing(10)
+        sidebar_header_layout.setContentsMargins(0, 10, 0, 0)
+
+        # Add the app icon (inferno_symbol.png)
+        inferno_icon = QLabel()
+        pixmap = QPixmap('icons/inferno_symbol.png')
+        inferno_icon.setPixmap(pixmap)
+        inferno_icon.setFixedSize(52, 52)  # Set icon size (adjust as needed)
+        inferno_icon.setScaledContents(True)  # Ensure the image scales to fit the QLabel size
+        sidebar_header_layout.addWidget(inferno_icon)
+
+        # Add the "Inferno App" text next to the icon
+        inferno_text = QLabel("Inferno App")
+        inferno_text.setObjectName("sidebar_title")
+        sidebar_header_layout.addWidget(inferno_text)
+
+        # Add spacing at the end to align the content left
+        sidebar_header_layout.addStretch()
+
+        # Add the header (icon + text) to the sidebar layout
+        self.sidebar_layout.addLayout(sidebar_header_layout)
+
+
+        ### REST OF THE SIDEBAR ###
 
         # Create buttons for the sidebar menu with .svg icons
         self.home_button = QPushButton(" Home")
@@ -128,6 +156,11 @@ class MainWindow(QMainWindow):
             background-color: #0288d1;  /* Solid blue sidebar with no gaps */
             border-radius: 0px;
         }
+        #sidebar_title{
+            color: white; 
+            font-size: 20px;
+            font-weight: bold;          
+        }
         QPushButton{
             padding: 10px;
             background-color: #0288d1;
@@ -140,9 +173,6 @@ class MainWindow(QMainWindow):
         }
         QPushButton:pressed{
             background-color: #01579b;
-        }
-        QPushButton::icon {
-            color: red;
         }
         """)
 
