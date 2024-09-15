@@ -17,10 +17,17 @@ class MainWindow(QMainWindow):
 
         ### INITIAL SETUP WITH WINDOW ###
 
-        # Set main window properties
-        self.setWindowTitle("Inferno App")
-        self.setGeometry(200, 200, 1200, 800)
-        self.setWindowIcon(QIcon('icons/inferno_symbol.png'))
+        # Set window title to an empty string to remove "Python"
+        self.setWindowTitle(" ")
+
+        # Set window icon to a blank icon (effectively removing the icon)
+        self.setWindowIcon(QIcon("icons/inferno_symbol.png"))  # QIcon() creates an empty icon
+
+        # Set window to be maximized (full-windowed)
+        self.showMaximized()
+
+        # Remove the window title and icon, but keep the minimize, maximize/restore, and close buttons
+        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
 
         # Main layout that will hold the sidebar and the content area
         self.main_layout = QHBoxLayout()
