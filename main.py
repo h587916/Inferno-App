@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon("icons/inferno_symbol.png"))  # QIcon() creates an empty icon
 
         # Set window to be maximized (full-windowed)
-        self.showMaximized()
+        #self.showMaximized()
 
         # Remove the window title and icon, but keep the minimize, maximize/restore, and close buttons
         self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
@@ -182,33 +182,6 @@ class MainWindow(QMainWindow):
             background-color: #01579b;
         }
         """)
-
-        # Initial state of sidebar (expanded)
-        self.sidebar_expanded = True
-
-
-    ### HELPER FUNCTIONS ###
-
-    def toggle_sidebar(self):
-        """Toggle between the expanded and minimized states of the sidebar."""
-        if self.sidebar_expanded:
-            # Minimize the sidebar: hide text, only show icons
-            self.sidebar_widget.setFixedWidth(50)
-            self.home_button.setText("")
-            self.metadata_button.setText("")
-            self.learn_button.setText("")
-            self.plotting_button.setText("")
-            self.settings_button.setText("")
-        else:
-            # Expand the sidebar: show text and icons
-            self.sidebar_widget.setFixedWidth(200)
-            self.home_button.setText(" Home")
-            self.metadata_button.setText(" Metadata")
-            self.learn_button.setText(" Learn")
-            self.plotting_button.setText(" Plotting")
-            self.settings_button.setText(" Settings")
-        
-        self.sidebar_expanded = not self.sidebar_expanded
 
 
 if __name__ == "__main__":
