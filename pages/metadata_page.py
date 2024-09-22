@@ -87,8 +87,14 @@ class MetadataPage(QWidget):
         # Load the list of generated metadata files
         self.load_metadata_files()
 
-
         ### MODIFY METADATA FILE - TABLE WIDGET ###
+
+        # Create a table widget to display the CSV data and metadata
+        self.table_widget = QTableWidget()
+        self.table_widget.setVisible(False)  # Initially hidden
+
+        # Add the table widget to the layout
+        layout.addWidget(self.table_widget)
 
         # Add a button to save the metadata file
         self.save_button = QPushButton("Save Changes")
@@ -102,13 +108,6 @@ class MetadataPage(QWidget):
         layout.addWidget(self.back_button)
         self.back_button.setVisible(False)  # Initially hidden
 
-        # Create a table widget to display the CSV data and metadata
-        self.table_widget = QTableWidget()
-        self.table_widget.setVisible(False)  # Initially hidden
-
-        # Add the table widget to the layout, but hide them initially
-        layout.addWidget(self.table_widget)
-
         # Set the layout for the page
         self.setLayout(layout)
 
@@ -121,15 +120,40 @@ class MetadataPage(QWidget):
             background-color: white;
             color: black;
         }
+        QComboBox:hover {
+            background-color: #0277bd;
+        }
+        QComboBox QAbstractItemView {
+            background-color: white;  /* Background color for dropdown items */
+            border: 1px solid #ddd;
+            selection-background-color: #0277bd;  /* Highlight color for selected item */
+            selection-color: white;  /* Text color for selected item */
+        }
+        QComboBox QAbstractItemView::item {
+            padding: 5px;  /* Padding around dropdown items */
+        }
         QMessageBox {
             background-color: white;
         }
         QTableWidget {
-            background-color: white;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            gridline-color: #ddd;
+            font-size: 14px;
         }
-        QTableWidget QHeaderView::section {
-            background-color: white;  
+        QTableWidget::item {
+            padding: 10px;
+        }
+        QTableWidget::item:selected {
+            background-color: #d0e6f6;
             color: black;
+        }
+        QHeaderView::section {
+            background-color: #0288d1;  
+            color: white;
+            font-weight: bold;
+            padding: 5px;
+            border: 1px solid #ddd;
         }
         QPushButton {
             background-color: #0288d1; 
@@ -143,7 +167,7 @@ class MetadataPage(QWidget):
         QPushButton:pressed {
             background-color: #01579b; 
         }
-         QListWidget {
+        QListWidget {
             border: 2px solid black;
             border-radius: 5px;
             padding: 5px;
@@ -297,35 +321,6 @@ class MetadataPage(QWidget):
         self.save_button.setVisible(True)
         self.back_button.setVisible(True)
         self.table_widget.setVisible(True)
-
-        self.table_widget.setStyleSheet("""
-        QTableWidget {
-            background-color: #f9f9f9;  /* Light background for readability */
-            border: 1px solid #ddd;      /* Light border */
-            gridline-color: #ddd;        /* Light gridlines */
-            font-size: 14px;             /* Comfortable font size */
-        }
-        QTableWidget::item {
-            padding: 10px;               /* Add padding to table items */
-        }
-        QTableWidget::item:selected {
-            background-color: #d0e6f6;   /* Light blue background for selected row */
-            color: black;                /* Keep text color black for readability */
-        }
-        QHeaderView::section {
-            background-color: #0288d1;   /* Blue background for header */
-            color: white;                /* White text in headers */
-            font-weight: bold;            /* Bold font for header */
-            padding: 5px;
-            border: 1px solid #ddd;      /* Light border around headers */
-        }
-        QComboBox {
-            padding: 5px;                /* Add padding to dropdowns */
-        }
-        QComboBox:hover {
-            background-color: #e0f0ff;   /* Slight hover effect for dropdowns */
-        }
-    """)
         
         # Read the generated metadata file into a pandas DataFrame
         metadata_df = pd.read_csv(metadata_file_path)
@@ -333,6 +328,10 @@ class MetadataPage(QWidget):
         self.table_widget.setRowCount(len(metadata_df))
         self.table_widget.setColumnCount(len(metadata_df.columns))
         self.table_widget.setHorizontalHeaderLabels(metadata_df.columns)
+
+        self.table_widget.verticalHeader().setDefaultSectionSize(40)
+        self.table_widget.setColumnWidth(metadata_df.columns.get_loc("type"), 130)
+        self.table_widget.setColumnWidth(metadata_df.columns.get_loc("name"), 130)
 
         # Fill the table with data from the DataFrame and add tooltips or dropdowns for specific columns
         tooltips = {
