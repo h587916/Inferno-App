@@ -4,11 +4,11 @@ from PySide6.QtGui import QIcon, QPixmap
 import sys
 
 # Import the individual pages from their respective files
-from pages.home_page import HomePage
-from pages.metadata_page import MetadataPage
-from pages.learn_page import LearnPage
-from pages.plotting_page import PlottingPage
-from pages.settings_page import SettingsPage
+from pages.home.page import HomePage
+from pages.metadata.page import MetadataPage
+from pages.learn.page import LearnPage
+from pages.plotting.page import PlottingPage
+from pages.settings.page import SettingsPage
 
 
 class MainWindow(QMainWindow):

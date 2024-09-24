@@ -1,0 +1,18 @@
+
+{
+    "header_tooltips": {
+        "name": "The name of the variate. Must match exactly what is used in the dataset,\nincluding upper/lower-case.",
+        "type": "The data type of the variate. Possible values: nominal, ordinal,\ncontinuous.",
+        "domainmin": "The minimum value for the variate (ordinal/continuous). Can be a real\nnumber or empty, which is treated as -Inf. E.g., 'age' might have a\nminimum of 18 if only adults are considered.",
+        "domainmax": "The maximum value for the variate. Can be a real number or empty, treated\nas +Inf. E.g., 'age' might have a maximum of 90 if that's the upper\ncategory in the dataset.",
+        "datastep": "The smallest difference between values (ordinal/continuous). E.g., for\nages rounded to years, datastep = 1. For a precise measure, like length,\ndatastep = 0.01 (centimeters). Empty is treated as 0.",
+        "minincluded": "Specifies if the minimum value (domainmin) is included. Values: true, false,\nor empty. E.g., for a temperature with a lower bound of 0 but not\nreachable, minincluded would be false.",
+        "maxincluded": "Specifies if the maximum value (domainmax) is included. Similar to\nminincluded. If domainmax is infinite, maxincluded is automatically\nfalse."
+    },
+    "combobox_item_tooltips": {
+        "nominal": "A nominal variate has a fixed set of unordered values (e.g., 'red',\n'green', 'blue'). Values must be listed in fields V1, V2, etc. Include all\npossible values, even if not present in the dataset. Binary variates (e.g.,\n'yes'/'no') can also be nominal.",
+        "ordinal": "An ordinal variate has ordered values (e.g., 'low', 'medium', 'high').\nValues can be listed either in V1, V2, etc., or by specifying domainmin,\ndomainmax, datastep for numeric, equally spaced values (e.g., 1, 2, 3).",
+        "continuous": "A continuous variate has a range of values with ordering (e.g., age,\nlength). Fields domainmin, domainmax, datastep, minincluded, maxincluded\nmust be specified. If values are rounded, datastep reflects that precision\n(e.g., 1 year or 0.01 meters)."
+    }
+  }
+  

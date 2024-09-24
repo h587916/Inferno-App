@@ -12,7 +12,7 @@ def run_learn(metadatafile: str, datafile: str, outputdir: str, seed: int, paral
         datafile_r = StrVector([datafile])
 
         # Call the 'learn' function from the Inferno package
-        result = inferno.learn(data=datafile_r, metadata=metadatafile_r, outputdir=outputdir, seed=seed, parallel=parallel, appendtimestamp = False, appendinfo = False)
+        result = inferno.learn(data=datafile_r, metadata=metadatafile_r, outputdir=outputdir, seed=seed, parallel=parallel, appendtimestamp=False, appendinfo=False)
 
         print(f"Learning completed successfully. Results saved to {outputdir}.")
         return result

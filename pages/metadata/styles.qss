@@ -1,0 +1,88 @@
+/* ComboBox Style */
+QComboBox {
+    background-color: white;
+    color: black;
+}
+QComboBox:hover {
+    background-color: white;
+}
+QComboBox QAbstractItemView {
+    background-color: white;
+    border: 1px solid #ddd;
+    selection-background-color: white; 
+    selection-color: white;
+}
+QComboBox QAbstractItemView::item {
+    padding: 5px;
+}
+
+/* MessageBox Style */
+QMessageBox {
+    background-color: white;
+}
+
+/* TableWidget Style */
+QTableWidget {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    gridline-color: #ddd;
+    font-size: 14px;
+}
+QTableWidget::item {
+    padding: 10px;
+}
+QTableWidget::item:selected {
+    background-color: #d0e6f6;
+    color: black;
+}
+
+/* HeaderView Style */
+QHeaderView::section {
+    background-color: #0288d1;
+    color: white;
+    font-weight: bold;
+    padding: 5px;
+    border: 1px solid #ddd;
+}
+
+/* Button Style */
+QPushButton {
+    background-color: #0288d1;
+    color: white;
+    border-radius: 5px;
+    padding: 8px;
+}
+QPushButton:hover {
+    background-color: #0277bd;
+}
+QPushButton:pressed {
+    background-color: #01579b;
+}
+
+/* ListWidget Style */
+QListWidget {
+    border: 2px solid black;
+    border-radius: 5px;
+    padding: 5px;
+    background-color: white;
+}
+QListWidget::item {
+    padding: 10px;
+}
+QListWidget::item:selected {
+    background-color: #f0f0f0;
+    color: black;
+}
+QListWidget::item:hover {
+    background-color: #e0e0e0;
+    color: black;
+}
+
+/* ToolTip Style */
+QToolTip {
+    background-color: white;
+    color: black;
+    border: 1px solid black;
+    padding: 10px;
+    font-size: 14px;
+}

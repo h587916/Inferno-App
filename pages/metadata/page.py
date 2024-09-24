@@ -2,9 +2,11 @@ import os
 import pandas as pd
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, 
                                QTableWidget, QTableWidgetItem, QComboBox, QHBoxLayout, QListWidget,
-                               QGroupBox)
+                               QGroupBox, QAbstractItemView, QHeaderView, QAbstractScrollArea, QToolTip)
 from PySide6.QtCore import Qt
-from r_integration.metadata import build_metadata
+from pages.metadata.metadata import build_metadata
+import json
+
 
 # Folder where uploads and metadata are stored
 UPLOAD_FOLDER = 'files/uploads/'
@@ -13,6 +15,13 @@ METADATA_FOLDER = 'files/metadata/'
 # Ensure the directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(METADATA_FOLDER, exist_ok=True)
+
+with open('pages/metadata/tooltips.json', 'r') as f:
+    tooltips = json.load(f)
+
+header_tooltips = tooltips['header_tooltips']
+combobox_item_tooltips = tooltips['combobox_item_tooltips']
+
 
 class MetadataPage(QWidget):
     def __init__(self):
@@ -111,80 +120,10 @@ class MetadataPage(QWidget):
         # Set the layout for the page
         self.setLayout(layout)
 
-
-        ### STYLESHEET ###
-
-        # Apply the stylesheet to ensure white background for QComboBox and QMessageBox
-        self.setStyleSheet("""
-        QComboBox {
-            background-color: white;
-            color: black;
-        }
-        QComboBox:hover {
-            background-color: #0277bd;
-        }
-        QComboBox QAbstractItemView {
-            background-color: white;  /* Background color for dropdown items */
-            border: 1px solid #ddd;
-            selection-background-color: #0277bd;  /* Highlight color for selected item */
-            selection-color: white;  /* Text color for selected item */
-        }
-        QComboBox QAbstractItemView::item {
-            padding: 5px;  /* Padding around dropdown items */
-        }
-        QMessageBox {
-            background-color: white;
-        }
-        QTableWidget {
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-            gridline-color: #ddd;
-            font-size: 14px;
-        }
-        QTableWidget::item {
-            padding: 10px;
-        }
-        QTableWidget::item:selected {
-            background-color: #d0e6f6;
-            color: black;
-        }
-        QHeaderView::section {
-            background-color: #0288d1;  
-            color: white;
-            font-weight: bold;
-            padding: 5px;
-            border: 1px solid #ddd;
-        }
-        QPushButton {
-            background-color: #0288d1; 
-            color: white; 
-            border-radius: 5px;
-            padding: 8px;
-        }
-        QPushButton:hover {
-            background-color: #0277bd;  
-        }
-        QPushButton:pressed {
-            background-color: #01579b; 
-        }
-        QListWidget {
-            border: 2px solid black;
-            border-radius: 5px;
-            padding: 5px;
-            background-color: white;
-        }
-        QListWidget::item {
-            padding: 10px;
-        }
-        QListWidget::item:selected {
-            background-color: #f0f0f0;
-            color: black;
-        }
-        QListWidget::item:hover {
-            background-color: #e0e0e0;
-            color: black;
-        }
-        """)
+        # Apply the stylesheet
+        with open('pages/metadata/styles.qss', 'r') as file:
+            stylesheet = file.read()
+        self.setStyleSheet(stylesheet)
 
 
     ### HELPER FUNCTIONS ###
@@ -243,7 +182,18 @@ class MetadataPage(QWidget):
     
     def save_metadata_file(self):
         """Save the modified metadata file to the metadata folder."""
-        metadata_file_path = os.path.join(METADATA_FOLDER, f"metadata_{os.path.basename(self.selected_file_path)}")
+        # Determine the correct file path based on whether it's a new or existing file
+        if hasattr(self, 'selected_metadata_path'):
+            # If modifying an existing metadata file
+            metadata_file_path = self.selected_metadata_path
+        elif hasattr(self, 'selected_file_path'):
+            # If generating a new metadata file
+            metadata_file_path = os.path.join(METADATA_FOLDER, f"metadata_{os.path.basename(self.selected_file_path)}")
+        else:
+            # Handle the case where neither is selected
+            QMessageBox.warning(self, "Error", "No file selected to save.")
+            return
+        
         metadata_df = pd.DataFrame(columns=[self.table_widget.horizontalHeaderItem(i).text() for i in range(self.table_widget.columnCount())])
 
         for i in range(self.table_widget.rowCount()):
@@ -281,10 +231,10 @@ class MetadataPage(QWidget):
         if hasattr(self, 'selected_file_path'):
             try:
                 # Generate the metadata file
-                metadata_file_path = build_metadata(self.selected_file_path, f"files/metadata/metadata_{os.path.basename(self.selected_file_path)}")
+                self.metadata_file_path = build_metadata(self.selected_file_path, f"files/metadata/metadata_{os.path.basename(self.selected_file_path)}")
                 
                 # Display the metadata in the table
-                self.display_metadata(metadata_file_path)
+                self.display_metadata(self.metadata_file_path)
 
                 QMessageBox.information(self, "Metadata Generated", "Metadata file generated successfully. Review the file carefully and make any necessary changes.")
 
@@ -324,44 +274,53 @@ class MetadataPage(QWidget):
         
         # Read the generated metadata file into a pandas DataFrame
         metadata_df = pd.read_csv(metadata_file_path)
-
         self.table_widget.setRowCount(len(metadata_df))
         self.table_widget.setColumnCount(len(metadata_df.columns))
         self.table_widget.setHorizontalHeaderLabels(metadata_df.columns)
 
+        # Set the column widths and row heights
         self.table_widget.verticalHeader().setDefaultSectionSize(40)
         self.table_widget.setColumnWidth(metadata_df.columns.get_loc("type"), 130)
         self.table_widget.setColumnWidth(metadata_df.columns.get_loc("name"), 130)
 
+        # Set tooltips for the headers
+        for i, column_name in enumerate(metadata_df.columns):
+            header_item = self.table_widget.horizontalHeaderItem(i)
+            if column_name in header_tooltips:
+                header_item.setToolTip(header_tooltips[column_name])
+        
         # Fill the table with data from the DataFrame and add tooltips or dropdowns for specific columns
-        tooltips = {
-            "type": "Type of data (nominal, ordinal, continuous)",
-            "datastep": "Width of gaps",
-            "domainmin": "Minimum domain value",
-            "domainmax": "Maximum domain value",
-            "minincluded": "Is the minimum included?",
-            "maxincluded": "Is the maximum included?",
-            "plotmin": "Minimum value for plotting",
-            "plotmax": "Maximum value for plotting"
-        }
-
         for i, row in metadata_df.iterrows():
             for j, value in enumerate(row):
                 column_name = metadata_df.columns[j]
-                if column_name in ["type", "minincluded", "maxincluded"]:
+
+                # Replace 'nan' values with an empty string
+                if pd.isna(value):
+                    value = ""
+
+                if column_name == "type":
                     combo = QComboBox()
-                    if column_name == "type":
-                        combo.addItems(["nominal", "ordinal", "continuous"])
-                    elif column_name in ["minincluded", "maxincluded"]:
-                        combo.addItems(["True", "False", ""])
+                    combo.addItems(["nominal", "ordinal", "continuous"])
+
+                    # Set the tooltip for each item in the ComboBox
+                    combo.setItemData(0, combobox_item_tooltips["nominal"], Qt.ToolTipRole)
+                    combo.setItemData(1, combobox_item_tooltips["ordinal"], Qt.ToolTipRole)
+                    combo.setItemData(2, combobox_item_tooltips["continuous"], Qt.ToolTipRole)
 
                     # Set the current value in the dropdown
                     combo.setCurrentText(str(value))
                     self.table_widget.setCellWidget(i, j, combo)
+
+                elif column_name in ["minincluded", "maxincluded"]:
+                    combo = QComboBox()
+                    combo.addItems(["True", "False", ""])
+
+                    # Set the current value in the dropdown
+                    combo.setCurrentText(str(value))
+                    self.table_widget.setCellWidget(i, j, combo)
+
                 else:
                     item = QTableWidgetItem(str(value))
-                    if column_name in tooltips:
-                        item.setToolTip(tooltips[column_name])
                     self.table_widget.setItem(i, j, item)
 
 
