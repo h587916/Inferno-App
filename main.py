@@ -9,6 +9,7 @@ from pages.metadata.page import MetadataPage
 from pages.learn.page import LearnPage
 from pages.plotting.page import PlottingPage
 from pages.settings.page import SettingsPage
+from pages.literature.page import LiteraturePage
 
 
 class MainWindow(QMainWindow):
@@ -72,6 +73,7 @@ class MainWindow(QMainWindow):
         self.metadata_button = QPushButton(" Metadata")
         self.learn_button = QPushButton(" Learn")
         self.plotting_button = QPushButton(" Plotting")
+        self.literature_button = QPushButton(" Literature")
         self.settings_button = QPushButton(" Settings")
 
         # Set .svg icons for buttons (replace with actual file paths)
@@ -79,6 +81,7 @@ class MainWindow(QMainWindow):
         self.metadata_button.setIcon(QIcon('icons/metadata.svg'))
         self.learn_button.setIcon(QIcon('icons/learn.svg'))
         self.plotting_button.setIcon(QIcon('icons/plotting.svg'))
+        self.literature_button.setIcon(QIcon('icons/book.svg'))
         self.settings_button.setIcon(QIcon('icons/settings.svg'))
 
         # Set icon sizes
@@ -87,6 +90,7 @@ class MainWindow(QMainWindow):
         self.metadata_button.setIconSize(icon_size)
         self.learn_button.setIconSize(icon_size)
         self.plotting_button.setIconSize(icon_size)
+        self.literature_button.setIconSize(icon_size)
         self.settings_button.setIconSize(icon_size)
 
         # Add the buttons to the sidebar layout
@@ -94,6 +98,7 @@ class MainWindow(QMainWindow):
         self.sidebar_layout.addWidget(self.metadata_button)
         self.sidebar_layout.addWidget(self.learn_button)
         self.sidebar_layout.addWidget(self.plotting_button)
+        self.sidebar_layout.addWidget(self.literature_button)
         self.sidebar_layout.addWidget(self.settings_button)
         self.sidebar_layout.addStretch()  # Push the items to the top
 
@@ -115,12 +120,15 @@ class MainWindow(QMainWindow):
         self.metadata_page = MetadataPage()
         self.learn_page = LearnPage()
         self.plotting_page = PlottingPage()
+        self.literature_page = LiteraturePage()
         self.settings_page = SettingsPage()
 
         self.stacked_widget.addWidget(self.home_page)
         self.stacked_widget.addWidget(self.metadata_page)
         self.stacked_widget.addWidget(self.learn_page)
+        self.stacked_widget.addWidget(self.literature_page)
         self.stacked_widget.addWidget(self.plotting_page)
+
         self.stacked_widget.addWidget(self.settings_page)
 
         # Connect sidebar buttons to change the displayed page
@@ -128,6 +136,7 @@ class MainWindow(QMainWindow):
         self.metadata_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.metadata_page))
         self.learn_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.learn_page))
         self.plotting_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.plotting_page))
+        self.literature_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.literature_page))  
         self.settings_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.settings_page))
 
 

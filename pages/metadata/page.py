@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QFileD
                                QTableWidget, QTableWidgetItem, QComboBox, QHBoxLayout, QListWidget,
                                QGroupBox, QAbstractItemView, QHeaderView, QAbstractScrollArea, QToolTip)
 from PySide6.QtCore import Qt
-from pages.metadata.metadata import build_metadata
+from r_integration.inferno_functions import build_metadata
 import json
 
 
