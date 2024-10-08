@@ -51,8 +51,10 @@ class PlottingPage(QWidget):
         self.stacked_widget.setCurrentIndex(0)
 
         # Connect to file manager signals
-        self.file_manager.files_updated.connect(self.load_files)
-        self.file_manager.learnt_folders_updated.connect(self.load_result_folders)
+        self.file_manager.files_updated.connect(self.load_files_mutualinfo)
+        self.file_manager.files_updated.connect(self.load_files_pr)
+        self.file_manager.learnt_folders_updated.connect(self.load_result_folders_mutualinfo)
+        self.file_manager.learnt_folders_updated.connect(self.load_result_folders_pr)
 
         # Refresh the list of files and learnt folders
         self.file_manager.refresh()
@@ -164,30 +166,22 @@ class PlottingPage(QWidget):
 
     ### HELPER FUNCTIONS ###
 
-    def load_files(self):
-        """Load dataset files into the dataset comboboxes from the FileManager."""
-        self.pr_dataset_combobox.clear()
+    def load_files_mutualinfo(self):
+        """Load dataset files into the MI dataset combobox from the FileManager."""
         self.mi_dataset_combobox.clear()
 
         # Disconnect the signal temporarily while loading items
         self.mi_dataset_combobox.currentIndexChanged.disconnect(self.on_dataset_selected)
 
         if self.file_manager.uploaded_files:
-            self.pr_dataset_combobox.addItems(self.file_manager.uploaded_files)
             self.mi_dataset_combobox.addItems(self.file_manager.uploaded_files)
-            # Set current index to -1 to indicate no selection yet
             self.mi_dataset_combobox.setCurrentIndex(-1)
-            self.pr_dataset_combobox.setCurrentIndex(-1)
         else:
-            self.pr_dataset_combobox.addItem("No datasets available")
-            self.pr_dataset_combobox.setItemData(1, Qt.NoItemFlags)
             self.mi_dataset_combobox.addItem("No datasets available")
             self.mi_dataset_combobox.setItemData(1, Qt.NoItemFlags)
 
         # Reconnect the signal after the combobox is populated
         self.mi_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected)
-
-        self.pr_dataset_combobox.setCurrentIndex(-1)
 
     def on_dataset_selected(self, index):
         """Load variables only when a dataset is selected by the user."""
@@ -200,19 +194,35 @@ class PlottingPage(QWidget):
                 self.additional_predictor_listwidget
             )
 
-    def load_result_folders(self):
-        """Load learnt folders into the learnt comboboxes from the FileManager."""
-        self.mi_learnt_combobox.clear()
-        self.pr_learnt_combobox.clear()
+    def load_files_pr(self):
+        """Load dataset files into the PR dataset combobox from the FileManager."""
+        self.pr_dataset_combobox.clear()
 
-        # Load learnt folders
+        if self.file_manager.uploaded_files:
+            self.pr_dataset_combobox.addItems(self.file_manager.uploaded_files)
+            self.pr_dataset_combobox.setCurrentIndex(-1)
+        else:
+            self.pr_dataset_combobox.addItem("No datasets available")
+            self.pr_dataset_combobox.setItemData(1, Qt.NoItemFlags)
+
+    def load_result_folders_mutualinfo(self):
+        """Load learnt folders into the MI learnt combobox from the FileManager."""
+        self.mi_learnt_combobox.clear()
+
         if self.file_manager.learnt_folders:
             self.mi_learnt_combobox.addItems(self.file_manager.learnt_folders)
-            self.pr_learnt_combobox.addItems(self.file_manager.learnt_folders)
+            self.mi_learnt_combobox.setCurrentIndex(-1)
         else:
             self.mi_learnt_combobox.addItem("No learnt folders available")
             self.mi_learnt_combobox.setItemData(1, Qt.NoItemFlags)
+
+    def load_result_folders_pr(self):
+        """Load learnt folders into the PR learnt combobox from the FileManager."""
+        self.pr_learnt_combobox.clear()
+
+        if self.file_manager.learnt_folders:
+            self.pr_learnt_combobox.addItems(self.file_manager.learnt_folders)
+            self.pr_learnt_combobox.setCurrentIndex(-1)
+        else:
             self.pr_learnt_combobox.addItem("No learnt folders available")
             self.pr_learnt_combobox.setItemData(1, Qt.NoItemFlags)
-        self.mi_learnt_combobox.setCurrentIndex(-1)
-        self.pr_learnt_combobox.setCurrentIndex(-1)
