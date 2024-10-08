@@ -1,136 +1,218 @@
-import os
-import pandas as pd
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, 
-                               QComboBox, QListWidget, QTextEdit, QAbstractItemView)
-from r_integration.inferno_functions import run_mutualinfo
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QHBoxLayout, QStackedWidget, QComboBox, QListWidget, QTextEdit, QAbstractItemView, QFormLayout, QLineEdit
+from PySide6.QtCore import Qt
+from pages.plotting.mutualinfo import load_mutual_variables, run_mutual_information
+from pages.plotting.pr import load_pr_variables, run_pr_function
 
-LEARNT_FOLDER = 'files/learnt/'
-UPLOAD_FOLDER = 'files/uploads/'
 
 class PlottingPage(QWidget):
-    def __init__(self):
+    def __init__(self, file_manager):
         super().__init__()
+        self.file_manager = file_manager
 
-        # Set up the layout for the Plotting page
+        # Main layout for the Plotting page
+        main_layout = QVBoxLayout()
+
+        # Create a horizontal layout for the top navigation buttons (MutualInfo, Pr, tailPr)
+        button_layout = QHBoxLayout()
+
+        # Create buttons for each function
+        self.info_button = QPushButton("Info")
+        self.mutual_info_button = QPushButton("MutualInfo")
+        self.pr_button = QPushButton("Pr")
+        self.tailpr_button = QPushButton("TailPr")
+
+        # Add buttons to the layout
+        button_layout.addWidget(self.info_button)
+        button_layout.addWidget(self.mutual_info_button)
+        button_layout.addWidget(self.pr_button)
+        button_layout.addWidget(self.tailpr_button)
+
+        # Add button layout to the main layout
+        main_layout.addLayout(button_layout)
+
+        # Create a stacked widget to switch between different function input panels
+        self.stacked_widget = QStackedWidget()
+        main_layout.addWidget(self.stacked_widget)
+
+        # Set layout
+        self.setLayout(main_layout)
+
+        # Load and apply styles from the QSS file
+        with open('pages/plotting/styles.qss', 'r') as f:
+            style = f.read()
+            self.setStyleSheet(style)
+
+        # Create individual panels for each function
+        self.create_info_panel()
+        self.create_mutualinfo_panel()
+        self.create_pr_panel()
+
+        # Set default panel to info panel
+        self.stacked_widget.setCurrentIndex(0)
+
+        # Connect to file manager signals
+        self.file_manager.files_updated.connect(self.load_files)
+        self.file_manager.learnt_folders_updated.connect(self.load_result_folders)
+
+        # Refresh the list of files and learnt folders
+        self.file_manager.refresh()
+
+
+    def create_info_panel(self):
+        """Create the panel for the general info page."""
+        info_panel = QWidget()
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("This is the general info page."))
+        info_panel.setLayout(layout)
+
+        # Add the info_panel to the stacked widget
+        self.stacked_widget.addWidget(info_panel)
+
+        # Connect button to display the Info panel
+        self.info_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(info_panel))
+
+
+    def create_mutualinfo_panel(self):
+        """Create the panel for the MutualInfo function."""
+        mutual_info_panel = QWidget()
         layout = QVBoxLayout()
 
         # Dataset selection
-        self.dataset_label = QLabel("Select a Dataset:")
-        layout.addWidget(self.dataset_label)
-
-        self.dataset_combobox = QComboBox()
-        layout.addWidget(self.dataset_combobox)
-        self.load_datasets()
+        self.mi_dataset_combobox = QComboBox()
+        layout.addWidget(QLabel("Select a Dataset:"))
+        layout.addWidget(self.mi_dataset_combobox)
 
         # Learnt folder selection
-        self.learnt_label = QLabel("Select a Learnt Folder:")
-        layout.addWidget(self.learnt_label)
+        self.mi_learnt_combobox = QComboBox()
+        layout.addWidget(QLabel("Select a Learnt Folder:"))
+        layout.addWidget(self.mi_learnt_combobox)
 
-        self.learnt_combobox = QComboBox()
-        layout.addWidget(self.learnt_combobox)
-        self.load_learnt_folders()
+        # Rest of the mutual info setup
+        self.predictand_combobox = QComboBox()
+        self.predictor_listwidget = QListWidget()
+        self.predictor_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.additional_predictor_listwidget = QListWidget()
+        self.additional_predictor_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
 
-        # Variable selection for Y1 (dependent variable)
-        self.Y1_label = QLabel("Select Y1 (Target Variable):")
-        layout.addWidget(self.Y1_label)
+        layout.addWidget(QLabel("Select Predictand:"))
+        layout.addWidget(self.predictand_combobox)
 
-        self.Y1_combobox = QComboBox()
-        layout.addWidget(self.Y1_combobox)
+        layout.addWidget(QLabel("Select Predictor(s):"))
+        layout.addWidget(self.predictor_listwidget)
 
-        # Variable selection for Y2 (independent variables) with multi-selection
-        self.Y2_label = QLabel("Select Y2 (Conditioning Variables):")
-        layout.addWidget(self.Y2_label)
+        layout.addWidget(QLabel("Select Additional Predictor(s) (Optional):"))
+        layout.addWidget(self.additional_predictor_listwidget)
 
-        self.Y2_listwidget = QListWidget()
-        self.Y2_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
-        layout.addWidget(self.Y2_listwidget)
+        # Connect signal after setting up the layout but do not run it before an actual selection
+        self.mi_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected)
 
-        # Button to load variables from the dataset
-        self.load_variables_button = QPushButton("Load Variables")
-        layout.addWidget(self.load_variables_button)
-        self.load_variables_button.clicked.connect(self.load_data_variables)
-
-        # Button to run mutual information
-        self.run_button = QPushButton("Run Mutual Information")
-        layout.addWidget(self.run_button)
-        self.run_button.clicked.connect(self.run_mutual_information)
+        # Button to run mutual info
+        run_button = QPushButton("Run Mutual Information")
+        run_button.clicked.connect(lambda: run_mutual_information(
+            self.predictand_combobox,
+            self.predictor_listwidget,
+            self.additional_predictor_listwidget,
+            self.mi_learnt_combobox,
+            self.results_display,
+            self.mi_dataset_combobox
+        ))
+        layout.addWidget(run_button)
 
         # Area to display results
-        self.results_label = QLabel("Results:")
-        layout.addWidget(self.results_label)
-
         self.results_display = QTextEdit()
         self.results_display.setReadOnly(True)
+        layout.addWidget(QLabel("Results:"))
         layout.addWidget(self.results_display)
 
-        # Set the layout for the page
-        self.setLayout(layout)
+        mutual_info_panel.setLayout(layout)
 
-    def load_datasets(self):
-        """Load available datasets from the uploads directory into the ComboBox."""
-        datasets = [f for f in os.listdir(UPLOAD_FOLDER) if f.endswith('.csv')]
-        if datasets:
-            self.dataset_combobox.addItems(datasets)
+        # Add the mutual_info_panel to the stacked widget
+        self.stacked_widget.addWidget(mutual_info_panel)
+
+        # Connect button to display the MutualInfo panel
+        self.mutual_info_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(mutual_info_panel))
+
+
+    def create_pr_panel(self):
+        """Create the panel for the Pr function."""
+        pr_panel = QWidget()
+        layout = QVBoxLayout()
+
+        # Dataset selection
+        self.pr_dataset_combobox = QComboBox()
+        layout.addWidget(QLabel("Select a Dataset:"))
+        layout.addWidget(self.pr_dataset_combobox)
+
+        # Learnt folder selection
+        self.pr_learnt_combobox = QComboBox()
+        layout.addWidget(QLabel("Select a Learnt Folder:"))
+        layout.addWidget(self.pr_learnt_combobox)
+
+        # TODO start: Add the rest of the PR setup here
+
+
+        # TODO end
+
+        pr_panel.setLayout(layout)
+
+        # Add the pr_panel to the stacked widget
+        self.stacked_widget.addWidget(pr_panel)
+
+        # Connect button to display the Pr panel
+        self.pr_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(pr_panel))
+
+
+    ### HELPER FUNCTIONS ###
+
+    def load_files(self):
+        """Load dataset files into the dataset comboboxes from the FileManager."""
+        self.pr_dataset_combobox.clear()
+        self.mi_dataset_combobox.clear()
+
+        # Disconnect the signal temporarily while loading items
+        self.mi_dataset_combobox.currentIndexChanged.disconnect(self.on_dataset_selected)
+
+        if self.file_manager.uploaded_files:
+            self.pr_dataset_combobox.addItems(self.file_manager.uploaded_files)
+            self.mi_dataset_combobox.addItems(self.file_manager.uploaded_files)
+            # Set current index to -1 to indicate no selection yet
+            self.mi_dataset_combobox.setCurrentIndex(-1)
+            self.pr_dataset_combobox.setCurrentIndex(-1)
         else:
-            self.dataset_combobox.addItem("No datasets available")
+            self.pr_dataset_combobox.addItem("No datasets available")
+            self.pr_dataset_combobox.setItemData(1, Qt.NoItemFlags)
+            self.mi_dataset_combobox.addItem("No datasets available")
+            self.mi_dataset_combobox.setItemData(1, Qt.NoItemFlags)
 
-    def load_learnt_folders(self):
-        """Load available learnt folders from the learnt directory into the ComboBox."""
-        learnt_folders = [f for f in os.listdir(LEARNT_FOLDER) if os.path.isdir(os.path.join(LEARNT_FOLDER, f))]
-        if learnt_folders:
-            self.learnt_combobox.addItems(learnt_folders)
+        # Reconnect the signal after the combobox is populated
+        self.mi_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected)
+
+        self.pr_dataset_combobox.setCurrentIndex(-1)
+
+    def on_dataset_selected(self, index):
+        """Load variables only when a dataset is selected by the user."""
+        # Ensure an item is selected (index >= 0)
+        if index >= 0:
+            load_mutual_variables(
+                self.mi_dataset_combobox,
+                self.predictand_combobox,
+                self.predictor_listwidget,
+                self.additional_predictor_listwidget
+            )
+
+    def load_result_folders(self):
+        """Load learnt folders into the learnt comboboxes from the FileManager."""
+        self.mi_learnt_combobox.clear()
+        self.pr_learnt_combobox.clear()
+
+        # Load learnt folders
+        if self.file_manager.learnt_folders:
+            self.mi_learnt_combobox.addItems(self.file_manager.learnt_folders)
+            self.pr_learnt_combobox.addItems(self.file_manager.learnt_folders)
         else:
-            self.learnt_combobox.addItem("No learnt folders available")
-
-    def load_data_variables(self):
-        """Load available variates from the selected dataset for Y1 and Y2 selection."""
-        selected_dataset = self.dataset_combobox.currentText()
-        if selected_dataset == "No datasets available":
-            QMessageBox.warning(self, "Error", "Please select a valid dataset.")
-            return
-
-        try:
-            dataset_path = os.path.join(UPLOAD_FOLDER, selected_dataset)
-            data = pd.read_csv(dataset_path)
-
-            # Clear previous items in combobox and list widget
-            self.Y1_combobox.clear()
-            self.Y2_listwidget.clear()
-
-            # Populate the combo box and list widget with column names
-            self.Y1_combobox.addItems(data.columns)
-            self.Y2_listwidget.addItems(data.columns)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load dataset variables: {str(e)}")
-
-    def run_mutual_information(self):
-        print("hei")
-        """Run mutual information calculation between selected Y1 and Y2."""
-        Y1_variate = self.Y1_combobox.currentText()
-        Y2_variates = [item.text() for item in self.Y2_listwidget.selectedItems()]
-        learnt_folder = self.learnt_combobox.currentText()
-
-        if Y1_variate and Y2_variates and learnt_folder != "No learnt folders available":
-            try:
-                # Call the run_mutualinfo function
-                Y1names = [Y1_variate]
-                Y2names = Y2_variates
-                learnt_dir = os.path.join(LEARNT_FOLDER, learnt_folder)
-
-                # Run mutual information function
-                result = run_mutualinfo(Y1names=Y1names, learnt_dir=learnt_dir, Y2names=Y2names)
-                print(result)
-
-                # Check if result is valid
-                if result is not None:
-                    # Display result in the text area (assuming it's a DataFrame)
-                    result_text = result.to_string()  # Convert DataFrame to string for display
-                    self.results_display.setText(result_text)
-                    QMessageBox.information(self, "Success", "Mutual information calculated successfully.")
-                else:
-                    QMessageBox.warning(self, "Error", "Failed to calculate mutual information. Please check the logs.")
-
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to calculate mutual information: {str(e)}")
-        else:
-            QMessageBox.warning(self, "Input Error", "Please select Y1, at least one Y2 variable, and a learnt folder.")
+            self.mi_learnt_combobox.addItem("No learnt folders available")
+            self.mi_learnt_combobox.setItemData(1, Qt.NoItemFlags)
+            self.pr_learnt_combobox.addItem("No learnt folders available")
+            self.pr_learnt_combobox.setItemData(1, Qt.NoItemFlags)
+        self.mi_learnt_combobox.setCurrentIndex(-1)
+        self.pr_learnt_combobox.setCurrentIndex(-1)

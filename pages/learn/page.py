@@ -10,8 +10,9 @@ METADATA_FOLDER = 'files/metadata/'
 LEARNT_FOLDER = 'files/learnt/'
 
 class LearnPage(QWidget):
-    def __init__(self):
+    def __init__(self, file_manager):
         super().__init__()
+        self.file_manager = file_manager
 
         # Set up the layout for the Learn page
         layout = QVBoxLayout()
@@ -58,48 +59,48 @@ class LearnPage(QWidget):
             style = f.read()
             self.setStyleSheet(style)
 
-        # Load files and results
-        self.load_files()
-        self.load_results()
+        # Connect to file manager signals
+        self.file_manager.files_updated.connect(self.load_files)
+        self.file_manager.learnt_folders_updated.connect(self.load_result_folders)
+
+        # Load files
+        self.file_manager.refresh()
 
         self.csv_combobox.currentIndexChanged.connect(self.check_selection)
         self.metadata_combobox.currentIndexChanged.connect(self.check_selection)
 
 
+    ### HELPER FUNCTIONS ###
+
     def load_files(self):
-        """Load available files from the uploads and metadata folders into the ComboBoxes."""
+        """Load CSV and metadata files from FileManager."""
         self.csv_combobox.clear()
         self.metadata_combobox.clear()
 
-        # Load CSV files into the CSV ComboBox
-        csv_files = [f for f in os.listdir(UPLOAD_FOLDER) if f.endswith('.csv')]
-        if csv_files:
-            self.csv_combobox.addItems(csv_files)
+        # Populate CSV combobox
+        if self.file_manager.uploaded_files:
+            self.csv_combobox.addItems(self.file_manager.uploaded_files)
         else:
             self.csv_combobox.addItem("No CSV files available")
             self.csv_combobox.setItemData(1, Qt.NoItemFlags)
+        self.csv_combobox.setCurrentIndex(-1)
 
-        # Load Metadata files into the Metadata ComboBox
-        metadata_files = [f for f in os.listdir(METADATA_FOLDER) if f.endswith('.csv')]
-        if metadata_files:
-            self.metadata_combobox.addItems(metadata_files)
+        # Populate Metadata combobox
+        if self.file_manager.metadata_files:
+            self.metadata_combobox.addItems(self.file_manager.metadata_files)
         else:
             self.metadata_combobox.addItem("No metadata files available")
             self.metadata_combobox.setItemData(1, Qt.NoItemFlags)
+        self.metadata_combobox.setCurrentIndex(-1)
 
-        self.csv_combobox.setCurrentIndex(-1)  # No file selected initially
-        self.metadata_combobox.setCurrentIndex(-1)  # No file selected initially
-
-
-    def load_results(self):
-        """Load the list of learn results from the learnt folder."""
+    def load_result_folders(self):
+        """Load the result folders from the learnt folder using FileManager."""
         self.results_list.clear()
-        result_folders = [f for f in os.listdir(LEARNT_FOLDER) if os.path.isdir(os.path.join(LEARNT_FOLDER, f))]
-        if result_folders:
-            self.results_list.addItems(result_folders)
-        else:
-            self.results_list.addItem("No results available")
 
+        if self.file_manager.learnt_folders:
+            self.results_list.addItems(self.file_manager.learnt_folders)
+        else:
+            self.results_list.addItem("No result folders available")
     
     def rename_result(self):
         """Rename the selected result folder."""
@@ -112,7 +113,7 @@ class LearnPage(QWidget):
                 new_path = os.path.join(LEARNT_FOLDER, new_name)
                 if not os.path.exists(new_path):
                     os.rename(old_path, new_path)
-                    self.load_results()  # Refresh the list after renaming
+                    self.file_manager.load_files() 
                     QMessageBox.information(self, "Success", f"Folder renamed to {new_name}.")
                 else:
                     QMessageBox.warning(self, "Error", "A folder with that name already exists.")
@@ -130,7 +131,7 @@ class LearnPage(QWidget):
             if confirm == QMessageBox.Yes:
                 folder_path = os.path.join(LEARNT_FOLDER, folder_name)
                 shutil.rmtree(folder_path)
-                self.load_results()  # Refresh the list after deletion
+                self.file_manager.load_files()
                 QMessageBox.information(self, "Success", f"Folder '{folder_name}' deleted.")
         else:
             QMessageBox.warning(self, "Error", "No folder selected.")
@@ -183,6 +184,6 @@ class LearnPage(QWidget):
         # Provide feedback with a message box based on the result
         if result:
             QMessageBox.information(self, "Success", f"Monte Carlo simulation runned successfully!\nThe results are saved in the '{datafile_name}' folder.")
-            self.load_results()
+            self.file_manager.load_files()
         else:
             QMessageBox.critical(self, "Error", "An error occurred while running the simulation")

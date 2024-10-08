@@ -83,7 +83,7 @@ def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 
         return None
 
 
-def run_Pr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantiles=[0.055, 0.25, 0.75, 0.945], nsamples=100):
+def run_Pr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantiles = [0.055, 0.25, 0.75, 0.945], nsamples: int = 100, parallel: int = 12):
     try:
         pandas2ri.activate()
 
@@ -99,9 +99,9 @@ def run_Pr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantiles=[
             learnt=learnt_r,
             quantiles=quantiles,
             nsamples=nsamples,
-            parallel=True, 
+            parallel=parallel, 
             silent=True, 
-            usememory=True,
+            usememory=True, 
             keepYX=True  
         )
 
@@ -149,14 +149,14 @@ def run_tailPr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantil
 
 
 
-def run_mutualinfo(Y1names: list, learnt_dir: str, Y2names: list = None, X: pd.DataFrame = None, nsamples: int = 3600, unit: str = "Sh"):
+def run_mutualinfo(predictor: list, learnt_dir: str, additional_predictor: list = None, predictand: pd.DataFrame = None, nsamples: int = 3600, unit: str = "Sh", paralell: int = 12):
     try:
         pandas2ri.activate()
 
         # Convert inputs to R objects
-        Y1names_r = StrVector(Y1names)
-        Y2names_r = StrVector(Y2names) if Y2names else rinterface.NULL
-        r_X = pandas2ri.py2rpy(X) if X else rinterface.NULL
+        Y1names_r = StrVector(predictor)
+        Y2names_r = StrVector(additional_predictor) if additional_predictor else rinterface.NULL
+        r_X = pandas2ri.py2rpy(predictand) if predictand is not None and not predictand.empty else rinterface.NULL
         learnt_r = StrVector([learnt_dir])
 
         # Call the mutualinfo() function from Inferno with default parallelism and memory handling
@@ -167,7 +167,7 @@ def run_mutualinfo(Y1names: list, learnt_dir: str, Y2names: list = None, X: pd.D
             learnt=learnt_r,
             nsamples=nsamples,
             unit=unit,
-            parallel=True, 
+            parallel=paralell, 
             silent=True
         )
 

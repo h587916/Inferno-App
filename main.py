@@ -10,96 +10,80 @@ from pages.learn.page import LearnPage
 from pages.plotting.page import PlottingPage
 from pages.settings.page import SettingsPage
 from pages.literature.page import LiteraturePage
+from file_manager.file_manager import FileManager
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        ### CENTRALIZED FILE MANAGEMENT ###
+        self.file_manager = FileManager()
+
         ### INITIAL SETUP WITH WINDOW ###
-
-        # Set window title to an empty string to remove "Python"
-        self.setWindowTitle(" ")
-
-        # Set window icon to a blank icon (effectively removing the icon)
-        self.setWindowIcon(QIcon("icons/inferno_symbol.png"))  # QIcon() creates an empty icon
-
-        # Set window to be maximized (full-windowed)
-        #self.showMaximized()
-
-        # Remove the window title and icon, but keep the minimize, maximize/restore, and close buttons
+        self.setWindowTitle("Inferno App")
+        self.setWindowIcon(QIcon("icons/inferno_symbol.png"))
         self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
 
         # Main layout that will hold the sidebar and the content area
         self.main_layout = QHBoxLayout()
-        self.main_layout.setContentsMargins(0, 0, 0, 0)  # No margins around the main layout
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
 
-
-       ### SIDEBAR WITH ICON AND TEXT ###
-
-        # Create a sidebar layout
+        ### SIDEBAR WITH ICON AND TEXT ###
         self.sidebar_layout = QVBoxLayout()
-        self.sidebar_layout.setSpacing(25)  # Space between sidebar buttons
+        self.sidebar_layout.setSpacing(25)
 
-        # Add a horizontal layout for the app icon and text at the top of the sidebar
+        # Sidebar header: icon and text
         sidebar_header_layout = QHBoxLayout()
         sidebar_header_layout.setSpacing(10)
         sidebar_header_layout.setContentsMargins(0, 10, 0, 0)
 
-        # Add the app icon (inferno_symbol.png)
         inferno_icon = QLabel()
         pixmap = QPixmap('icons/inferno_symbol.png')
         inferno_icon.setPixmap(pixmap)
-        inferno_icon.setFixedSize(52, 52)  # Set icon size (adjust as needed)
-        inferno_icon.setScaledContents(True)  # Ensure the image scales to fit the QLabel size
+        inferno_icon.setFixedSize(52, 52) 
+        inferno_icon.setScaledContents(True) 
         sidebar_header_layout.addWidget(inferno_icon)
 
-        # Add the "Inferno App" text next to the icon
         inferno_text = QLabel("Inferno App")
         inferno_text.setObjectName("sidebar_title")
         sidebar_header_layout.addWidget(inferno_text)
 
-        # Add spacing at the end to align the content left
         sidebar_header_layout.addStretch()
-
-        # Add the header (icon + text) to the sidebar layout
         self.sidebar_layout.addLayout(sidebar_header_layout)
 
+        ### PAGES AND BUTTONS FOR NAVIGATION (WITH CENTRALIZED DEFINITIONS) ###
+        # Define a dictionary of pages and their corresponding buttons
+        self.pages = {
+            "Home": (HomePage(), QPushButton(" Home")),
+            "Metadata": (MetadataPage(self.file_manager), QPushButton(" Metadata")),
+            "Learn": (LearnPage(self.file_manager), QPushButton(" Learn")),
+            "Plotting": (PlottingPage(self.file_manager), QPushButton(" Plotting")),
+            "Literature": (LiteraturePage(), QPushButton(" Literature")),
+            "Settings": (SettingsPage(), QPushButton(" Settings"))
+        }
 
-        ### REST OF THE SIDEBAR ###
+        # Create the stacked widget to hold all the pages
+        self.stacked_widget = QStackedWidget()
+        self.stacked_widget.setObjectName("stacked_widget")
 
-        # Create buttons for the sidebar menu with .svg icons
-        self.home_button = QPushButton(" Home")
-        self.metadata_button = QPushButton(" Metadata")
-        self.learn_button = QPushButton(" Learn")
-        self.plotting_button = QPushButton(" Plotting")
-        self.literature_button = QPushButton(" Literature")
-        self.settings_button = QPushButton(" Settings")
-
-        # Set .svg icons for buttons (replace with actual file paths)
-        self.home_button.setIcon(QIcon('icons/home.svg'))
-        self.metadata_button.setIcon(QIcon('icons/metadata.svg'))
-        self.learn_button.setIcon(QIcon('icons/learn.svg'))
-        self.plotting_button.setIcon(QIcon('icons/plotting.svg'))
-        self.literature_button.setIcon(QIcon('icons/book.svg'))
-        self.settings_button.setIcon(QIcon('icons/settings.svg'))
-
-        # Set icon sizes
+        # Loop through the pages, add them to the stacked widget, and connect their buttons
         icon_size = QSize(24, 24)
-        self.home_button.setIconSize(icon_size)
-        self.metadata_button.setIconSize(icon_size)
-        self.learn_button.setIconSize(icon_size)
-        self.plotting_button.setIconSize(icon_size)
-        self.literature_button.setIconSize(icon_size)
-        self.settings_button.setIconSize(icon_size)
+        for page_name, (page_widget, button) in self.pages.items():
+            # Add each page to the stacked widget
+            self.stacked_widget.addWidget(page_widget)
 
-        # Add the buttons to the sidebar layout
-        self.sidebar_layout.addWidget(self.home_button)
-        self.sidebar_layout.addWidget(self.metadata_button)
-        self.sidebar_layout.addWidget(self.learn_button)
-        self.sidebar_layout.addWidget(self.plotting_button)
-        self.sidebar_layout.addWidget(self.literature_button)
-        self.sidebar_layout.addWidget(self.settings_button)
+            # Set the icon for the button (assuming the icon filenames match the page names)
+            button.setIcon(QIcon(f'icons/{page_name.lower()}.svg'))
+            button.setIconSize(icon_size)
+
+            # Connect button to switch to the corresponding page and update the active button style
+            button.clicked.connect(self.make_switch_page_lambda(page_widget, button))
+
+            # Add each button to the sidebarsssssssssss
+            self.sidebar_layout.addWidget(button)
+
+
         self.sidebar_layout.addStretch()  # Push the items to the top
 
         # Create a sidebar widget and set its layout
@@ -109,40 +93,7 @@ class MainWindow(QMainWindow):
         self.sidebar_widget.setFixedWidth(200)  # Default expanded width
 
 
-        ### MANAGE DIFFERENT PAGES ON BUTTON CLICKS ###
-
-        # Create a stacked widget to display different pages based on button clicks
-        self.stacked_widget = QStackedWidget()
-        self.stacked_widget.setObjectName("stacked_widget")
-
-        # Create and add pages to the stacked widget
-        self.home_page = HomePage()
-        self.metadata_page = MetadataPage()
-        self.learn_page = LearnPage()
-        self.plotting_page = PlottingPage()
-        self.literature_page = LiteraturePage()
-        self.settings_page = SettingsPage()
-
-        self.stacked_widget.addWidget(self.home_page)
-        self.stacked_widget.addWidget(self.metadata_page)
-        self.stacked_widget.addWidget(self.learn_page)
-        self.stacked_widget.addWidget(self.literature_page)
-        self.stacked_widget.addWidget(self.plotting_page)
-
-        self.stacked_widget.addWidget(self.settings_page)
-
-        # Connect sidebar buttons to change the displayed page
-        self.home_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.home_page))
-        self.metadata_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.metadata_page))
-        self.learn_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.learn_page))
-        self.plotting_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.plotting_page))
-        self.literature_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.literature_page))  
-        self.settings_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(self.settings_page))
-
-
-        ### 
-
-        # Add the sidebar and main content area to the main layout
+        ### MAIN LAYOUT SETUP ###
         self.main_layout.addWidget(self.sidebar_widget)
         self.main_layout.addWidget(self.stacked_widget)
 
@@ -152,45 +103,72 @@ class MainWindow(QMainWindow):
         central_widget.setObjectName("centralwidget")
         self.setCentralWidget(central_widget)
 
+        # Initially set the active page to the home page
+        self.set_active_button(self.pages["Home"][1]) 
+        self.stacked_widget.setCurrentWidget(self.pages["Home"][0])
 
         ### STYLESHEET ###
-
-        # Apply the updated stylesheet for the new color scheme
         self.setStyleSheet("""
-        *{
+        * {
             border: none;
             background-color: transparent;
             color: #000;
         }
-        #centralwidget{
-            background-color: #0288d1;  /* Set the background to white */
+        #centralwidget {
+            background-color: #0288d1; 
         }
-        #stacked_widget{
-            background-color: #ffffff;  /* Make sure the stacked widget also has a white background */
+        #stacked_widget {
+            background-color: #ffffff; 
         }
-        #side_menu{
-            background-color: #0288d1;  /* Solid blue sidebar with no gaps */
+        #side_menu {
+            background-color: #0288d1;
             border-radius: 0px;
         }
-        #sidebar_title{
-            color: white; 
+        #sidebar_title {
+            color: white;
             font-size: 20px;
             font-weight: bold;          
         }
-        QPushButton{
+        QPushButton {
             padding: 10px;
             background-color: #0288d1;
             border-radius: 5px;
             font-size: 16px;
             color: #ffffff;
         }
-        QPushButton:hover{
-            background-color: #0277bd;
+        QPushButton:hover {
+            background-color: #0288d1;
+            border: 2px solid #ffffff;
         }
-        QPushButton:pressed{
-            background-color: #01579b;
+        QPushButton:pressed {
+            background-color: #0288d1;
+            border: 2px solid #ffffff;
+        }
+        QPushButton:checked {
+            background-color: #0288d1;
+            border: 2px solid #ffffff;
+            color: #ffffff;
         }
         """)
+
+    ### FUNCTION TO SWITCH PAGES AND SET ACTIVE BUTTON ###
+    def switch_page(self, page_widget, button):
+        """Switch to the given page and update the active button's style."""
+        self.stacked_widget.setCurrentWidget(page_widget)
+        self.set_active_button(button)
+
+    def set_active_button(self, active_button):
+        """Set the active button's style and reset other buttons."""
+        # Reset all button styles to the default
+        for page_name, (page_widget, button) in self.pages.items():
+            button.setStyleSheet("background-color: #0288d1; color: white;")
+
+        # Highlight the active button
+        active_button.setStyleSheet("background-color: #0288d1; color: white; border: 2px solid #ffffff;")
+
+    def make_switch_page_lambda(self, page_widget, button):
+        """Create a lambda function to switch to the given page and update the active button."""
+        return lambda: self.switch_page(page_widget, button)
 
 
 if __name__ == "__main__":
