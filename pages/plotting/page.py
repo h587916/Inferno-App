@@ -1,7 +1,5 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QHBoxLayout, QStackedWidget, QComboBox, QListWidget, QTextEdit, QAbstractItemView, QFormLayout, QLineEdit
+from PySide6.QtWidgets import QWidget, QSizePolicy, QSpacerItem, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, QComboBox, QListWidget, QTextEdit, QAbstractItemView, QFormLayout, QLineEdit
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
-from pages.plotting.mutualinfo import load_mutual_variables, run_mutual_information
 from pages.plotting.probability import load_pr_variables, run_pr_function
 
 
@@ -13,27 +11,133 @@ class PlottingPage(QWidget):
         # Main layout for the Plotting page
         main_layout = QVBoxLayout()
 
-        # Create a horizontal layout for the top navigation buttons (MutualInfo, Pr, tailPr)
-        button_layout = QHBoxLayout()
+        # Set title
+        self.Y_label = "Y"
+        self.X_label = "X"
+        self.y_value = "y"
+        self.x_value = "x"
+        self.data = "data"
+        self.title_label = QLabel()
+        self.title_label.setWordWrap(True)
+        self.title_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.title_label)
 
-        # Create buttons for each function
-        self.info_button = QPushButton("Info")
-        self.mutual_info_button = QPushButton("MutualInfo")
-        self.pr_button = QPushButton("Pr")
-        self.tailpr_button = QPushButton("TailPr")
+        # Area to display results
+        self.results_display = QTextEdit()
+        self.results_display.setReadOnly(True)
+        main_layout.addWidget(QLabel("Results:"))
+        main_layout.addWidget(self.results_display)
 
-        # Add buttons to the layout
-        button_layout.addWidget(self.info_button)
-        button_layout.addWidget(self.mutual_info_button)
-        button_layout.addWidget(self.pr_button)
-        button_layout.addWidget(self.tailpr_button)
+        # Create the QScrollArea
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)  # Make sure the widget inside resizes appropriately
+        self.scroll_area.setMinimumWidth(1000)  # Set a minimum width to ensure the scroll area is not too narrow
 
-        # Add button layout to the main layout
-        main_layout.addLayout(button_layout)
+        # Set a frame around the scroll area
+        self.scroll_area.setFrameShape(QFrame.Box)  # Set frame shape
+        self.scroll_area.setStyleSheet("QScrollArea { border: 1px solid black; }")  # Set black frame color
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        # Create a stacked widget to switch between different function input panels
-        self.stacked_widget = QStackedWidget()
-        main_layout.addWidget(self.stacked_widget)
+        # Create a content widget that will go inside the scroll area
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+
+        # Set spacing and margin adjustments for compact appearance
+        content_layout.setSpacing(5)  # Adjust this value for more or less space between rows
+        content_layout.setContentsMargins(50, 5, 50, 5)  # Reduce margins for a more compact look
+
+        # Learnt folder selection (with fixed label width)
+        learnt_layout = QHBoxLayout()  # Create a horizontal layout for learnt folder selection
+        learnt_label = QLabel("Select a learnt folder:")
+        self.pr_learnt_combobox = QComboBox()
+        self.pr_learnt_combobox.currentIndexChanged.connect(self.on_learnt_folder_selected)
+        fixed_label_width = 120  # You can adjust this to ensure both labels end at the same point
+        learnt_label.setFixedWidth(fixed_label_width)
+        learnt_layout.addWidget(learnt_label)
+        learnt_layout.addWidget(self.pr_learnt_combobox)
+        learnt_layout.setSpacing(5)  # Adjust the spacing between label and combobox
+        content_layout.addLayout(learnt_layout)
+
+        # Dataset selection (with fixed label width)
+        dataset_layout = QHBoxLayout()  # Create a horizontal layout for dataset selection
+        dataset_label = QLabel("Select a dataset:")
+        self.pr_dataset_combobox = QComboBox()
+        self.pr_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected_pr)
+        dataset_label.setFixedWidth(fixed_label_width)
+        dataset_label.setStyleSheet("padding-left: 23px;")
+        dataset_layout.addWidget(dataset_label)
+        dataset_layout.addWidget(self.pr_dataset_combobox)
+        dataset_layout.setSpacing(5)  # Adjust the spacing between label and combobox
+        content_layout.addLayout(dataset_layout)
+
+        # Add space between the file selection and the variate selection
+        spacer_label = QLabel()
+        spacer_label.setFixedHeight(20)
+        content_layout.addWidget(spacer_label)
+
+        # Target (Y) selection - multi-select list widget for selecting the target variables
+        self.Y_listwidget = QListWidget()
+        self.Y_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.Y_listwidget.itemSelectionChanged.connect(self.on_Y_label_selected)
+        self.Y_listwidget.setMinimumHeight(self.Y_listwidget.sizeHintForRow(0) * self.Y_listwidget.count() + 150)
+        self.Y_label_widget = QLabel("Select target variable(s):")
+        self.Y_label_widget.hide()
+        content_layout.addWidget(self.Y_label_widget)
+        content_layout.addWidget(self.Y_listwidget)
+
+        # X conditions selection (multi-select list widget)
+        self.X_listwidget = QListWidget()
+        self.X_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.X_listwidget.itemSelectionChanged.connect(self.on_X_label_selected)
+        self.X_listwidget.setMinimumHeight(self.X_listwidget.sizeHintForRow(0) * self.X_listwidget.count() + 150)
+        self.X_label_widget = QLabel("Select conditional variable(s):")
+        self.X_label_widget.hide()
+        content_layout.addWidget(self.X_label_widget)
+        content_layout.addWidget(self.X_listwidget)
+
+        # Combobox for selecting which variate should have a ranged value
+        self.ranged_value_label = QLabel("Which of the variate(s) should have a ranged value?")
+        self.ranged_value_combobox = QComboBox()
+        self.ranged_value_combobox.currentIndexChanged.connect(self.on_ranged_value_selected)
+        content_layout.addWidget(self.ranged_value_label)
+        content_layout.addWidget(self.ranged_value_combobox)
+        self.ranged_value_label.hide()
+        self.ranged_value_combobox.hide()
+
+        # Input fields for Y and X values
+        self.Y_inputs_layout = QFormLayout()
+        self.X_inputs_layout = QFormLayout()
+
+        # Add the input layouts to the scroll area's content layout (initially hidden)
+        self.Y_inputs_widget = QLabel()
+        self.X_inputs_widget = QLabel()
+        content_layout.addWidget(self.Y_inputs_widget)
+        content_layout.addLayout(self.Y_inputs_layout)
+        content_layout.addWidget(self.X_inputs_widget)
+        content_layout.addLayout(self.X_inputs_layout)
+
+        self.Y_inputs_widget.hide()
+        self.X_inputs_widget.hide()
+        self.Y_inputs_layout_widget = self.Y_inputs_layout
+        self.X_inputs_layout_widget = self.X_inputs_layout
+
+        # Set the content widget to the scroll area
+        self.scroll_area.setWidget(content_widget)
+
+        # Create an intermediate layout to center the scroll_area
+        intermediate_layout = QVBoxLayout()
+        intermediate_layout.addStretch(1.0)  # Add stretch at the top to push the scroll area down
+        intermediate_layout.addWidget(self.scroll_area, alignment=Qt.AlignCenter)  # Center the scroll area
+        intermediate_layout.addStretch()  # Add stretch at the bottom to push the scroll area up
+
+        # Add the intermediate layout to the main layout
+        main_layout.addLayout(intermediate_layout)
+
+        # Button to run the Pr function
+        run_button = QPushButton("Run Pr Function")
+        run_button.clicked.connect(lambda: run_pr_function(self.results_display))
+        main_layout.addWidget(run_button)
 
         # Set layout
         self.setLayout(main_layout)
@@ -43,174 +147,32 @@ class PlottingPage(QWidget):
             style = f.read()
             self.setStyleSheet(style)
 
-        # Create individual panels for each function
-        self.create_info_panel()
-        self.create_mutualinfo_panel()
-        self.create_pr_panel()
-
-        # Set default panel to info panel
-        self.stacked_widget.setCurrentIndex(0)
-
         # Connect to file manager signals
-        self.file_manager.files_updated.connect(self.load_files_mutualinfo)
         self.file_manager.files_updated.connect(self.load_files_pr)
-        self.file_manager.learnt_folders_updated.connect(self.load_result_folders_mutualinfo)
         self.file_manager.learnt_folders_updated.connect(self.load_result_folders_pr)
 
         # Refresh the list of files and learnt folders
         self.file_manager.refresh()
-
-
-    def create_info_panel(self):
-        """Create the panel for the general info page."""
-        info_panel = QWidget()
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("This is the general info page."))
-        info_panel.setLayout(layout)
-
-        # Add the info_panel to the stacked widget
-        self.stacked_widget.addWidget(info_panel)
-
-        # Connect button to display the Info panel
-        self.info_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(info_panel))
-
-
-    def create_mutualinfo_panel(self):
-        """Create the panel for the MutualInfo function."""
-        mutual_info_panel = QWidget()
-        layout = QVBoxLayout()
-
-        # Dataset selection
-        self.mi_dataset_combobox = QComboBox()
-        layout.addWidget(QLabel("Select a Dataset:"))
-        layout.addWidget(self.mi_dataset_combobox)
-
-        # Learnt folder selection
-        self.mi_learnt_combobox = QComboBox()
-        layout.addWidget(QLabel("Select a Learnt Folder:"))
-        layout.addWidget(self.mi_learnt_combobox)
-
-        # Rest of the mutual info setup
-        self.predictand_combobox = QComboBox()
-        self.predictor_listwidget = QListWidget()
-        self.predictor_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
-        self.additional_predictor_listwidget = QListWidget()
-        self.additional_predictor_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
-
-        layout.addWidget(QLabel("Select Predictand:"))
-        layout.addWidget(self.predictand_combobox)
-
-        layout.addWidget(QLabel("Select Predictor(s):"))
-        layout.addWidget(self.predictor_listwidget)
-
-        layout.addWidget(QLabel("Select Additional Predictor(s) (Optional):"))
-        layout.addWidget(self.additional_predictor_listwidget)
-
-        # Connect signal after setting up the layout but do not run it before an actual selection
-        self.mi_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected)
-
-        # Button to run mutual info
-        run_button = QPushButton("Run Mutual Information")
-        run_button.clicked.connect(lambda: run_mutual_information(
-            self.predictand_combobox,
-            self.predictor_listwidget,
-            self.additional_predictor_listwidget,
-            self.mi_learnt_combobox,
-            self.results_display,
-            self.mi_dataset_combobox
-        ))
-        layout.addWidget(run_button)
-
-        # Area to display results
-        self.results_display = QTextEdit()
-        self.results_display.setReadOnly(True)
-        layout.addWidget(QLabel("Results:"))
-        layout.addWidget(self.results_display)
-
-        mutual_info_panel.setLayout(layout)
-
-        # Add the mutual_info_panel to the stacked widget
-        self.stacked_widget.addWidget(mutual_info_panel)
-
-        # Connect button to display the MutualInfo panel
-        self.mutual_info_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(mutual_info_panel))
-
-
-    def create_pr_panel(self):
-        """Create the panel for the Pr function."""
-        pr_panel = QWidget()
-        layout = QVBoxLayout()
-
-        # Set title
-        self.Y_label = "Y"
-        self.X_label = "X"
-        self.y_value = "y"
-        self.x_value = "x"
-        self.data = "data"
-        self.title_label = QLabel()
-        font = QFont()
-        font.setPointSize(30)
-        self.title_label.setFont(font)
-        layout.addWidget(self.title_label)
-
-        # Learnt folder selection
-        self.pr_learnt_combobox = QComboBox()
-        layout.addWidget(QLabel("Select a Learnt Folder:"))
-        layout.addWidget(self.pr_learnt_combobox)
-        self.pr_learnt_combobox.currentIndexChanged.connect(self.on_learnt_folder_selected)
-
-        # Dataset selection
-        self.pr_dataset_combobox = QComboBox()
-        layout.addWidget(QLabel("Select a Dataset:"))
-        layout.addWidget(self.pr_dataset_combobox)
-        self.pr_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected_pr)
-
-        # Target (Y) selection - multi-select list widget for selecting the target variables
-        self.Y_listwidget = QListWidget()
-        self.Y_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
-        layout.addWidget(QLabel("Select the Target Variables (Y):"))
-        layout.addWidget(self.Y_listwidget)
-        self.Y_listwidget.itemSelectionChanged.connect(self.on_Y_label_selected)
-
-        # X conditions selection (multi-select list widget)
-        self.X_listwidget = QListWidget()
-        self.X_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
-        layout.addWidget(QLabel("Select the Conditional Variables (X):"))
-        layout.addWidget(self.X_listwidget)
-        self.X_listwidget.itemSelectionChanged.connect(self.on_X_label_selected)
-
-        # Input fields for Y and X values
-        self.Y_inputs_layout = QFormLayout()
-        layout.addLayout(self.Y_inputs_layout)
-
-        self.X_inputs_layout = QFormLayout()
-        layout.addLayout(self.X_inputs_layout)
-
-        # Area to display results
-        self.results_display = QTextEdit()
-        self.results_display.setReadOnly(True)
-        layout.addWidget(QLabel("Results:"))
-        layout.addWidget(self.results_display)
-
-        # Button to run the Pr function
-        run_button = QPushButton("Run Pr Function")
-        run_button.clicked.connect(lambda: run_pr_function(self.results_display))
-        layout.addWidget(run_button)
-
-        # Set the layout for the panel
-        pr_panel.setLayout(layout)
-
-        # Add the pr_panel to the stacked widget
-        self.stacked_widget.addWidget(pr_panel)
-
-        # Connect button to display the Pr panel
-        self.pr_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(pr_panel))
 
         # Update the title after initializing all widgets
         self.update_title()
 
 
     ### HELPER FUNCTIONS ###
+
+    def resizeEvent(self, event):
+        # Get the size of the main window
+        current_size = self.size()
+
+        # Set a percentage of the available space for the scroll area, for example, 80% of the height and 100% of the width
+        scroll_area_width = int(current_size.width() * 0.5)  # Full width
+        scroll_area_height = int(current_size.height() * 0.35)  # 80% of the height
+
+        # Update the size of the scroll area
+        self.scroll_area.setFixedSize(scroll_area_width, scroll_area_height)
+
+        # Call the base class's resizeEvent to ensure normal behavior
+        super().resizeEvent(event)
 
     def update_title(self):
         y_labels = [item.text() for item in self.Y_listwidget.selectedItems()]
@@ -223,32 +185,10 @@ class PlottingPage(QWidget):
         x_part = ", ".join([f"<span style='font-size: 30px;'>{label}</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>{value}</span>" for label, value in zip(x_labels, x_values)]) if x_labels else "<span style='font-size: 30px;'>X</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>x</span>"
 
         title_html = f"""
-        <span style="font-size: 40px;">P(</span>{y_part}<span style="font-size: 30px;"> | </span>{x_part}, <span style='font-size: 30px;'>{self.data}</span><span style="font-size: 40px;">) = ?</span>
+        <span style="font-size: 40px;">P(</span>{y_part}<span style="font-size: 30px;"> | </span>{x_part}, <span style='font-size: 30px;'>{self.data}</span><span style="font-size: 40px;">)</span>
         """
         self.title_label.setText(title_html)
 
-    def load_files_mutualinfo(self):
-        """Load dataset files into the MI dataset combobox from the FileManager."""
-        self.mi_dataset_combobox.clear()
-
-        # Disconnect the signal temporarily while loading items
-        self.mi_dataset_combobox.currentIndexChanged.disconnect(self.on_dataset_selected)
-
-        if self.file_manager.uploaded_files:
-            self.mi_dataset_combobox.addItems(self.file_manager.uploaded_files)
-            self.mi_dataset_combobox.setCurrentIndex(-1)
-        else:
-            self.mi_dataset_combobox.addItem("No datasets available")
-            self.mi_dataset_combobox.setItemData(1, Qt.NoItemFlags)
-
-        # Reconnect the signal after the combobox is populated
-        self.mi_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected)
-
-    def on_dataset_selected(self, index):
-        """Load variables only when a dataset is selected by the user."""
-        # Ensure an item is selected (index >= 0)
-        if index >= 0:
-            load_mutual_variables(self.mi_dataset_combobox, self.predictand_combobox, self.predictor_listwidget, self.additional_predictor_listwidget)
 
     def load_files_pr(self):
         """Load dataset files into the PR dataset combobox from the FileManager."""
@@ -272,17 +212,9 @@ class PlottingPage(QWidget):
         # Ensure an item is selected (index >= 0)
         if index >= 0:
             load_pr_variables(self.pr_dataset_combobox, self.Y_listwidget, self.X_listwidget)
+            self.Y_label_widget.show()
+            self.X_label_widget.show()
 
-    def load_result_folders_mutualinfo(self):
-        """Load learnt folders into the MI learnt combobox from the FileManager."""
-        self.mi_learnt_combobox.clear()
-
-        if self.file_manager.learnt_folders:
-            self.mi_learnt_combobox.addItems(self.file_manager.learnt_folders)
-            self.mi_learnt_combobox.setCurrentIndex(-1)
-        else:
-            self.mi_learnt_combobox.addItem("No learnt folders available")
-            self.mi_learnt_combobox.setItemData(1, Qt.NoItemFlags)
 
     def load_result_folders_pr(self):
         """Load learnt folders into the PR learnt combobox from the FileManager."""
@@ -306,10 +238,37 @@ class PlottingPage(QWidget):
     def on_Y_label_selected(self):
         """Update the Y value when a target variable is selected."""
         self.create_input_fields(self.Y_listwidget, self.Y_inputs_layout, "y")
+        self.update_ranged_value_combobox()
 
     def on_X_label_selected(self):
         """Update the X value when a conditional variable is selected."""
         self.create_input_fields(self.X_listwidget, self.X_inputs_layout, "x")
+        self.update_ranged_value_combobox()
+
+    def update_ranged_value_combobox(self):
+        """Update the ranged value combobox based on selected Y and X values."""
+        selected_items = self.Y_listwidget.selectedItems() + self.X_listwidget.selectedItems()
+        self.ranged_value_combobox.clear()
+        if selected_items:
+            self.ranged_value_label.show()
+            self.ranged_value_combobox.show()
+            self.ranged_value_combobox.addItem("Select a variate")
+            for item in selected_items:
+                self.ranged_value_combobox.addItem(item.text())
+        else:
+            self.ranged_value_label.hide()
+            self.ranged_value_combobox.hide()
+
+    def on_ranged_value_selected(self, index):
+        """Show the input fields once a ranged value is selected."""
+        if index > 0:  # Ensure a valid variate is selected
+            self.Y_inputs_widget.show()
+            self.X_inputs_widget.show()
+            self.Y_inputs_layout_widget.setEnabled(True)
+            self.X_inputs_layout_widget.setEnabled(True)
+        else:
+            self.Y_inputs_widget.hide()
+            self.X_inputs_widget.hide()
 
     def create_input_fields(self, list_widget, layout, prefix):
         """Create input fields for the selected labels."""
