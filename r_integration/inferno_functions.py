@@ -1,12 +1,15 @@
 import pandas as pd
 from rpy2.robjects.packages import importr
-from rpy2.robjects import pandas2ri, StrVector
+from rpy2.robjects import pandas2ri, StrVector, FloatVector
 from rpy2 import rinterface
 import os
 import shutil
 import logging
+import numpy as np
+from rpy2.robjects import r
 
 inferno = importr('inferno')
+grdevices = importr('grDevices')
 
 logging.basicConfig(
     level=logging.ERROR,
@@ -89,23 +92,26 @@ def run_Pr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantiles =
 
         # Convert the DataFrames to R objects
         r_Y = pandas2ri.py2rpy(Y)
-        r_X = pandas2ri.py2rpy(X) if X is not None else None
+        r_X = pandas2ri.py2rpy(X) if X is not None and not X.empty else rinterface.NUL
         learnt_r = StrVector([learnt_dir])
+        quantiles_r = FloatVector(quantiles)
 
         # Call the Pr() function from Inferno with default parallelism and memory handling
-        result = inferno.Pr(
+        probabilities = inferno.Pr(
             Y=r_Y,
             X=r_X,
             learnt=learnt_r,
-            quantiles=quantiles,
             nsamples=nsamples,
-            parallel=parallel, 
-            silent=True, 
-            usememory=True, 
-            keepYX=True  
+            parallel=parallel,
+            quantiles=quantiles_r
         )
-
-        return result
+        if probabilities:
+            values = probabilities.rx2('values')
+            quantiles = probabilities.rx2('quantiles')
+            return values, quantiles
+        else:
+            logging.error("The Pr function did not return any results.")
+            return None
 
     except Exception as e:
         logging.error(f"An error occurred while running the 'run_Pr' function: {str(e)}")
@@ -123,13 +129,14 @@ def run_tailPr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantil
         r_Y = pandas2ri.py2rpy(Y)
         r_X = pandas2ri.py2rpy(X) if X else rinterface.NULL
         learnt_r = StrVector([learnt_dir])
+        quantiles_r = FloatVector(quantiles)
 
         # Call the tailPr() function from Inferno with default parallelism and memory handling
-        result = inferno.tailPr(
+        probabilities = inferno.tailPr(
             Y=r_Y,
             X=r_X,
             learnt=learnt_r,
-            quantiles=quantiles,
+            quantiles=quantiles_r,
             nsamples=nsamples,
             parallel=True,
             lower_tail=True,
@@ -137,8 +144,7 @@ def run_tailPr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantil
             usememory=True,
             keepYX=True
         )
-
-        return result
+        return probabilities
 
     except Exception as e:
         logging.error(f"An error occurred while running the 'run_tailPr' function: {str(e)}")
@@ -186,12 +192,122 @@ def run_E():
     return
 
 
-def run_flexiplot():
-    return
+def plot_probabilities_and_quantiles(Y, probabilities):
+    """
+    Use R's plotquantiles and flexiplot functions to plot quantiles and probabilities.
+    """
+    x_values = Y['diff.MDS.UPRS.III'].tolist()  # X-axis values
+
+    # Extract quantiles and values from probabilities using rpy2
+    quantiles_r = probabilities.rx2('quantiles')  # Extract R quantiles object
+    prob_values_r = probabilities.rx2('values')  # Extract R probability values object
+
+    # Convert R objects to NumPy arrays for checking and passing to R functions
+    quantiles = np.array(quantiles_r)
+    prob_values = np.array(prob_values_r)
+
+    # Check if upper limit for ylim is None, and replace it with Inf for R
+    y_max = None if quantiles is None else np.max(quantiles)
+    y_max = y_max if y_max is not None else float('inf')  # Use infinity if None
+
+    # Open an R graphics device (this will open a new window for plotting)
+    grdevices.x11()  # or use windows() on Windows
+
+    # Call R's plotquantiles function
+    inferno.plotquantiles(
+        x=FloatVector(x_values),
+        y=quantiles,  # Pass quantiles as R object
+        ylim=FloatVector([0, y_max]),  # Set y-axis limits with proper upper limit
+        xlab='MDS-UPDRS-III difference',
+        ylab='Probability',
+        col=StrVector(['skyblue']),
+        border=StrVector(['darkblue']),
+        lwd=2,
+        add=False  # Create a new plot
+    )
+
+    # Call R's flexiplot function to overlay the probability distribution curve
+    inferno.flexiplot(
+        x=FloatVector(x_values),
+        y=prob_values,
+        col=StrVector(['red']),
+        lwd=2,
+        lty=1,
+        add=True  # Overlay on the existing plot
+    )
+
+    # Add 50%-probability line
+    r('abline')(h=0.5, lwd=2, col="blue", lty=2)
+
+    # Close the R device when done
+    grdevices.dev_off()
 
 
-def run_plotquantiles():
-    return
+def run_flexiplot(x: pd.Series, y: pd.Series, col='red', lwd=2, lty=1, add=True):
+    try:
+        # Activate rpy2 pandas support
+        pandas2ri.activate()
+
+        # Convert the x and y to R objects
+        r_x = pandas2ri.py2rpy(x)
+        r_y = pandas2ri.py2rpy(y)
+
+        # Convert other parameters to R-compatible objects
+        col_r = StrVector([col])
+        add_r = rinterface.BoolSexpVector([add])
+
+        # Call the flexiplot function
+        inferno.flexiplot(
+            x=r_x,
+            y=r_y,
+            col=col_r,
+            lwd=lwd,
+            lty=lty,
+            add=add_r
+        )
+
+    except Exception as e:
+        logging.error(f"An error occurred while running the 'run_flexiplot' function: {str(e)}")
+        return None
+
+    finally:
+        pandas2ri.deactivate()
+
+
+def run_plotquantiles(x: pd.Series, y: pd.DataFrame, ylim=(0, None), xlab='X-axis', ylab='Y-axis', col='skyblue', border='darkblue', lwd=2, add=False):
+    try:
+        # Activate rpy2 pandas support
+        pandas2ri.activate()
+
+        # Convert the x and y to R objects
+        r_x = pandas2ri.py2rpy(x)
+        r_y = pandas2ri.py2rpy(y)
+
+        # Convert additional parameters to R-compatible types
+        ylim_r = FloatVector(ylim)
+        col_r = StrVector([col])
+        border_r = StrVector([border])
+        add_r = rinterface.BoolSexpVector([add])
+
+        # Call the plotquantiles function
+        inferno.plotquantiles(
+            x=r_x,
+            y=r_y,
+            ylim=ylim_r,
+            xlab=xlab,
+            ylab=ylab,
+            col=col_r,
+            border=border_r,
+            lwd=lwd,
+            add=add_r
+        )
+
+    except Exception as e:
+        logging.error(f"An error occurred while running the 'run_plotquantiles' function: {str(e)}")
+        return None
+
+    finally:
+        pandas2ri.deactivate()
 
 
 def run_plotFsamples():

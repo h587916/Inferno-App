@@ -1,7 +1,8 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QHBoxLayout, QStackedWidget, QComboBox, QListWidget, QTextEdit, QAbstractItemView, QFormLayout, QLineEdit
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from pages.plotting.mutualinfo import load_mutual_variables, run_mutual_information
-from pages.plotting.pr import load_pr_variables, run_pr_function
+from pages.plotting.probability import load_pr_variables, run_pr_function
 
 
 class PlottingPage(QWidget):
@@ -140,21 +141,63 @@ class PlottingPage(QWidget):
         pr_panel = QWidget()
         layout = QVBoxLayout()
 
-        # Dataset selection
-        self.pr_dataset_combobox = QComboBox()
-        layout.addWidget(QLabel("Select a Dataset:"))
-        layout.addWidget(self.pr_dataset_combobox)
+        # Set title
+        self.Y_label = "Y"
+        self.X_label = "X"
+        self.y_value = "y"
+        self.x_value = "x"
+        self.data = "data"
+        self.title_label = QLabel()
+        font = QFont()
+        font.setPointSize(30)
+        self.title_label.setFont(font)
+        layout.addWidget(self.title_label)
 
         # Learnt folder selection
         self.pr_learnt_combobox = QComboBox()
         layout.addWidget(QLabel("Select a Learnt Folder:"))
         layout.addWidget(self.pr_learnt_combobox)
+        self.pr_learnt_combobox.currentIndexChanged.connect(self.on_learnt_folder_selected)
 
-        # TODO start: Add the rest of the PR setup here
+        # Dataset selection
+        self.pr_dataset_combobox = QComboBox()
+        layout.addWidget(QLabel("Select a Dataset:"))
+        layout.addWidget(self.pr_dataset_combobox)
+        self.pr_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected_pr)
 
+        # Target (Y) selection - multi-select list widget for selecting the target variables
+        self.Y_listwidget = QListWidget()
+        self.Y_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
+        layout.addWidget(QLabel("Select the Target Variables (Y):"))
+        layout.addWidget(self.Y_listwidget)
+        self.Y_listwidget.itemSelectionChanged.connect(self.on_Y_label_selected)
 
-        # TODO end
+        # X conditions selection (multi-select list widget)
+        self.X_listwidget = QListWidget()
+        self.X_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
+        layout.addWidget(QLabel("Select the Conditional Variables (X):"))
+        layout.addWidget(self.X_listwidget)
+        self.X_listwidget.itemSelectionChanged.connect(self.on_X_label_selected)
 
+        # Input fields for Y and X values
+        self.Y_inputs_layout = QFormLayout()
+        layout.addLayout(self.Y_inputs_layout)
+
+        self.X_inputs_layout = QFormLayout()
+        layout.addLayout(self.X_inputs_layout)
+
+        # Area to display results
+        self.results_display = QTextEdit()
+        self.results_display.setReadOnly(True)
+        layout.addWidget(QLabel("Results:"))
+        layout.addWidget(self.results_display)
+
+        # Button to run the Pr function
+        run_button = QPushButton("Run Pr Function")
+        run_button.clicked.connect(lambda: run_pr_function(self.results_display))
+        layout.addWidget(run_button)
+
+        # Set the layout for the panel
         pr_panel.setLayout(layout)
 
         # Add the pr_panel to the stacked widget
@@ -163,8 +206,26 @@ class PlottingPage(QWidget):
         # Connect button to display the Pr panel
         self.pr_button.clicked.connect(lambda: self.stacked_widget.setCurrentWidget(pr_panel))
 
+        # Update the title after initializing all widgets
+        self.update_title()
+
 
     ### HELPER FUNCTIONS ###
+
+    def update_title(self):
+        y_labels = [item.text() for item in self.Y_listwidget.selectedItems()]
+        x_labels = [item.text() for item in self.X_listwidget.selectedItems()]
+
+        y_values = [self.Y_inputs[label].text() if self.Y_inputs[label].text() else "y" for label in y_labels]
+        x_values = [self.X_inputs[label].text() if self.X_inputs[label].text() else "x" for label in x_labels]
+
+        y_part = ", ".join([f"<span style='font-size: 30px;'>{label}</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>{value}</span>" for label, value in zip(y_labels, y_values)]) if y_labels else "<span style='font-size: 30px;'>Y</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>y</span>"
+        x_part = ", ".join([f"<span style='font-size: 30px;'>{label}</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>{value}</span>" for label, value in zip(x_labels, x_values)]) if x_labels else "<span style='font-size: 30px;'>X</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>x</span>"
+
+        title_html = f"""
+        <span style="font-size: 40px;">P(</span>{y_part}<span style="font-size: 30px;"> | </span>{x_part}, <span style='font-size: 30px;'>{self.data}</span><span style="font-size: 40px;">) = ?</span>
+        """
+        self.title_label.setText(title_html)
 
     def load_files_mutualinfo(self):
         """Load dataset files into the MI dataset combobox from the FileManager."""
@@ -187,16 +248,14 @@ class PlottingPage(QWidget):
         """Load variables only when a dataset is selected by the user."""
         # Ensure an item is selected (index >= 0)
         if index >= 0:
-            load_mutual_variables(
-                self.mi_dataset_combobox,
-                self.predictand_combobox,
-                self.predictor_listwidget,
-                self.additional_predictor_listwidget
-            )
+            load_mutual_variables(self.mi_dataset_combobox, self.predictand_combobox, self.predictor_listwidget, self.additional_predictor_listwidget)
 
     def load_files_pr(self):
         """Load dataset files into the PR dataset combobox from the FileManager."""
         self.pr_dataset_combobox.clear()
+
+        # Disconnect the signal temporarily while loading items
+        self.pr_dataset_combobox.currentIndexChanged.disconnect(self.on_dataset_selected_pr)
 
         if self.file_manager.uploaded_files:
             self.pr_dataset_combobox.addItems(self.file_manager.uploaded_files)
@@ -204,6 +263,15 @@ class PlottingPage(QWidget):
         else:
             self.pr_dataset_combobox.addItem("No datasets available")
             self.pr_dataset_combobox.setItemData(1, Qt.NoItemFlags)
+
+        # Reconnect the signal after the combobox is populated
+        self.pr_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected_pr)
+
+    def on_dataset_selected_pr(self, index):
+        """Load variables only when a dataset is selected by the user."""
+        # Ensure an item is selected (index >= 0)
+        if index >= 0:
+            load_pr_variables(self.pr_dataset_combobox, self.Y_listwidget, self.X_listwidget)
 
     def load_result_folders_mutualinfo(self):
         """Load learnt folders into the MI learnt combobox from the FileManager."""
@@ -226,3 +294,44 @@ class PlottingPage(QWidget):
         else:
             self.pr_learnt_combobox.addItem("No learnt folders available")
             self.pr_learnt_combobox.setItemData(1, Qt.NoItemFlags)
+
+    def on_learnt_folder_selected(self, index):
+        """Update the data value when a learnt folder is selected."""
+        if index >= 0:
+            self.data = self.pr_learnt_combobox.currentText()
+        else:
+            self.data = "data"
+        self.update_title()
+
+    def on_Y_label_selected(self):
+        """Update the Y value when a target variable is selected."""
+        self.create_input_fields(self.Y_listwidget, self.Y_inputs_layout, "y")
+
+    def on_X_label_selected(self):
+        """Update the X value when a conditional variable is selected."""
+        self.create_input_fields(self.X_listwidget, self.X_inputs_layout, "x")
+
+    def create_input_fields(self, list_widget, layout, prefix):
+        """Create input fields for the selected labels."""
+        # Clear existing input fields
+        for i in reversed(range(layout.count())):
+            layout.itemAt(i).widget().setParent(None)
+
+        # Create new input fields for selected labels
+        selected_items = list_widget.selectedItems()
+        inputs = {}
+        for i, item in enumerate(selected_items):
+            label = item.text()
+            input_field = QLineEdit()
+            input_field.setPlaceholderText(f"{prefix}")
+            input_field.textChanged.connect(self.update_title)
+            layout.addRow(QLabel(label), input_field)
+            inputs[label] = input_field
+
+        # Store the inputs in the appropriate attribute
+        if prefix == "y":
+            self.Y_inputs = inputs
+        else:
+            self.X_inputs = inputs
+
+        self.update_title()
