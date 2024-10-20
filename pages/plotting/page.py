@@ -20,6 +20,7 @@ class PlottingPage(QWidget):
         self.title_label = QLabel()
         self.title_label.setWordWrap(True)
         self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setStyleSheet("font-size: 30px;")
         main_layout.addWidget(self.title_label)
 
         # Area to display results
@@ -45,7 +46,7 @@ class PlottingPage(QWidget):
 
         # Set spacing and margin adjustments for compact appearance
         content_layout.setSpacing(5)  # Adjust this value for more or less space between rows
-        content_layout.setContentsMargins(50, 5, 50, 5)  # Reduce margins for a more compact look
+        content_layout.setContentsMargins(50, 20, 50, 20)  # Reduce margins for a more compact look
 
         # Learnt folder selection (with fixed label width)
         learnt_layout = QHBoxLayout()  # Create a horizontal layout for learnt folder selection
@@ -81,46 +82,38 @@ class PlottingPage(QWidget):
         self.Y_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
         self.Y_listwidget.itemSelectionChanged.connect(self.on_Y_label_selected)
         self.Y_listwidget.setMinimumHeight(self.Y_listwidget.sizeHintForRow(0) * self.Y_listwidget.count() + 150)
-        self.Y_label_widget = QLabel("Select target variable(s):")
+        self.Y_label_widget = QLabel("Select target variable(s) Y:")
         self.Y_label_widget.hide()
         content_layout.addWidget(self.Y_label_widget)
         content_layout.addWidget(self.Y_listwidget)
+        self.selected_y_values = []
 
         # X conditions selection (multi-select list widget)
         self.X_listwidget = QListWidget()
         self.X_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
         self.X_listwidget.itemSelectionChanged.connect(self.on_X_label_selected)
         self.X_listwidget.setMinimumHeight(self.X_listwidget.sizeHintForRow(0) * self.X_listwidget.count() + 150)
-        self.X_label_widget = QLabel("Select conditional variable(s):")
+        self.X_label_widget = QLabel("Select conditional variable(s) X (optional):")
         self.X_label_widget.hide()
         content_layout.addWidget(self.X_label_widget)
         content_layout.addWidget(self.X_listwidget)
+        self.selected_x_values = []
 
         # Combobox for selecting which variate should have a ranged value
-        self.ranged_value_label = QLabel("Which of the variate(s) should have a ranged value?")
+        self.ranged_value_label = QLabel("Which variable should be plotted against the X axis?")
         self.ranged_value_combobox = QComboBox()
         self.ranged_value_combobox.currentIndexChanged.connect(self.on_ranged_value_selected)
-        content_layout.addWidget(self.ranged_value_label)
-        content_layout.addWidget(self.ranged_value_combobox)
         self.ranged_value_label.hide()
         self.ranged_value_combobox.hide()
+        content_layout.addWidget(self.ranged_value_label)
+        content_layout.addWidget(self.ranged_value_combobox)
 
-        # Input fields for Y and X values
-        self.Y_inputs_layout = QFormLayout()
-        self.X_inputs_layout = QFormLayout()
-
-        # Add the input layouts to the scroll area's content layout (initially hidden)
-        self.Y_inputs_widget = QLabel()
-        self.X_inputs_widget = QLabel()
-        content_layout.addWidget(self.Y_inputs_widget)
-        content_layout.addLayout(self.Y_inputs_layout)
-        content_layout.addWidget(self.X_inputs_widget)
-        content_layout.addLayout(self.X_inputs_layout)
-
-        self.Y_inputs_widget.hide()
-        self.X_inputs_widget.hide()
-        self.Y_inputs_layout_widget = self.Y_inputs_layout
-        self.X_inputs_layout_widget = self.X_inputs_layout
+        # Layout to give values to the selected Y and X variates
+        self.values_widget = QWidget()
+        self.values_layout = QFormLayout()
+        self.values_widget.setLayout(self.values_layout)
+        content_layout.addWidget(self.values_widget)
+        self.values_widget.hide()
 
         # Set the content widget to the scroll area
         self.scroll_area.setWidget(content_widget)
@@ -135,9 +128,9 @@ class PlottingPage(QWidget):
         main_layout.addLayout(intermediate_layout)
 
         # Button to run the Pr function
-        run_button = QPushButton("Run Pr Function")
-        run_button.clicked.connect(lambda: run_pr_function(self.results_display))
-        main_layout.addWidget(run_button)
+        create_plot_button = QPushButton("Create Plot")
+        create_plot_button.clicked.connect(self.on_create_plot_button_clicked)
+        main_layout.addWidget(create_plot_button)
 
         # Set layout
         self.setLayout(main_layout)
@@ -165,8 +158,8 @@ class PlottingPage(QWidget):
         current_size = self.size()
 
         # Set a percentage of the available space for the scroll area, for example, 80% of the height and 100% of the width
-        scroll_area_width = int(current_size.width() * 0.5)  # Full width
-        scroll_area_height = int(current_size.height() * 0.35)  # 80% of the height
+        scroll_area_width = int(current_size.width() * 0.5)  # 50% of the width
+        scroll_area_height = int(current_size.height() * 0.8)  # 35% of the height
 
         # Update the size of the scroll area
         self.scroll_area.setFixedSize(scroll_area_width, scroll_area_height)
@@ -175,20 +168,23 @@ class PlottingPage(QWidget):
         super().resizeEvent(event)
 
     def update_title(self):
-        y_labels = [item.text() for item in self.Y_listwidget.selectedItems()]
-        x_labels = [item.text() for item in self.X_listwidget.selectedItems()]
+        """Update the title based on the selected values and input values."""
+        y_values = self.get_input_value(self.selected_y_values)
+        x_values = self.get_input_value(self.selected_x_values)
 
-        y_values = [self.Y_inputs[label].text() if self.Y_inputs[label].text() else "y" for label in y_labels]
-        x_values = [self.X_inputs[label].text() if self.X_inputs[label].text() else "x" for label in x_labels]
+        y_labels = ", ".join([f"{label}={y_values.get(label, '')}" for label in self.selected_y_values])
+        x_labels = ", ".join([f"{label}={x_values.get(label, '')}" for label in self.selected_x_values])
 
-        y_part = ", ".join([f"<span style='font-size: 30px;'>{label}</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>{value}</span>" for label, value in zip(y_labels, y_values)]) if y_labels else "<span style='font-size: 30px;'>Y</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>y</span>"
-        x_part = ", ".join([f"<span style='font-size: 30px;'>{label}</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>{value}</span>" for label, value in zip(x_labels, x_values)]) if x_labels else "<span style='font-size: 30px;'>X</span><span style='font-size: 25px;'>=</span><span style='font-size: 25px;'>x</span>"
+        if y_labels and x_labels:
+            title = f"P({y_labels} | {x_labels}, {self.data})"
+        elif y_labels:
+            title = f"P({y_labels} | {self.data})"
+        elif x_labels:
+            title = f"P({self.Y_label}={self.y_value} | {x_labels}, {self.data})"
+        else:
+            title = f"P({self.Y_label}={self.y_value} | {self.X_label}={self.x_value}, {self.data})"
 
-        title_html = f"""
-        <span style="font-size: 40px;">P(</span>{y_part}<span style="font-size: 30px;"> | </span>{x_part}, <span style='font-size: 30px;'>{self.data}</span><span style="font-size: 40px;">)</span>
-        """
-        self.title_label.setText(title_html)
-
+        self.title_label.setText(title)
 
     def load_files_pr(self):
         """Load dataset files into the PR dataset combobox from the FileManager."""
@@ -236,61 +232,114 @@ class PlottingPage(QWidget):
         self.update_title()
 
     def on_Y_label_selected(self):
-        """Update the Y value when a target variable is selected."""
-        self.create_input_fields(self.Y_listwidget, self.Y_inputs_layout, "y")
-        self.update_ranged_value_combobox()
-
+        selected_items = self.Y_listwidget.selectedItems()
+        self.selected_y_values = [item.text() for item in selected_items]
+        self.update_combobox()
+        self.update_title()
+    
     def on_X_label_selected(self):
-        """Update the X value when a conditional variable is selected."""
-        self.create_input_fields(self.X_listwidget, self.X_inputs_layout, "x")
-        self.update_ranged_value_combobox()
+        selected_items = self.X_listwidget.selectedItems()
+        self.selected_x_values = [item.text() for item in selected_items]
+        self.update_combobox()
+        self.update_title()
+    
+    def update_combobox(self):
+        """Update the combobox with the selected Y values."""
+        self.ranged_value_combobox.blockSignals(True)  # Temporarily block signals
 
-    def update_ranged_value_combobox(self):
-        """Update the ranged value combobox based on selected Y and X values."""
-        selected_items = self.Y_listwidget.selectedItems() + self.X_listwidget.selectedItems()
         self.ranged_value_combobox.clear()
-        if selected_items:
+        combined_values = self.selected_y_values + self.selected_x_values
+        self.ranged_value_combobox.addItems(combined_values)
+
+        self.ranged_value_combobox.setCurrentIndex(-1)
+
+        if self.selected_y_values and self.selected_x_values:
             self.ranged_value_label.show()
             self.ranged_value_combobox.show()
-            self.ranged_value_combobox.addItem("Select a variate")
-            for item in selected_items:
-                self.ranged_value_combobox.addItem(item.text())
         else:
             self.ranged_value_label.hide()
             self.ranged_value_combobox.hide()
 
+        self.ranged_value_combobox.blockSignals(False)  # Re-enable signals
+
+        self.clear_values_layout()
+
+    def clear_values_layout(self):
+        """Clear and hide the values layout."""
+        while self.values_layout.count():
+            item = self.values_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.values_widget.hide()
+    
     def on_ranged_value_selected(self, index):
-        """Show the input fields once a ranged value is selected."""
-        if index > 0:  # Ensure a valid variate is selected
-            self.Y_inputs_widget.show()
-            self.X_inputs_widget.show()
-            self.Y_inputs_layout_widget.setEnabled(True)
-            self.X_inputs_layout_widget.setEnabled(True)
-        else:
-            self.Y_inputs_widget.hide()
-            self.X_inputs_widget.hide()
+        if index >= 0:
+            self.update_values_layout()
 
-    def create_input_fields(self, list_widget, layout, prefix):
-        """Create input fields for the selected labels."""
-        # Clear existing input fields
-        for i in reversed(range(layout.count())):
-            layout.itemAt(i).widget().setParent(None)
+    def update_values_layout(self):
+        """Update the values layout with input boxes for selected Y and X variates."""
+        self.clear_values_layout()
 
-        # Create new input fields for selected labels
-        selected_items = list_widget.selectedItems()
-        inputs = {}
-        for i, item in enumerate(selected_items):
-            label = item.text()
-            input_field = QLineEdit()
-            input_field.setPlaceholderText(f"{prefix}")
-            input_field.textChanged.connect(self.update_title)
-            layout.addRow(QLabel(label), input_field)
-            inputs[label] = input_field
+        # Add input boxes for selected Y variates
+        for y_value in self.selected_y_values:
+            label = QLabel(f"{y_value} = ")
+            input_box = QLineEdit()
+            input_box.textChanged.connect(self.on_value_changed)
 
-        # Store the inputs in the appropriate attribute
-        if prefix == "y":
-            self.Y_inputs = inputs
-        else:
-            self.X_inputs = inputs
+            frame = QFrame()
+            frame.setFrameShape(QFrame.Box)
+            frame.setStyleSheet("QFrame { border: 1px solid #0288d1; }")
 
+            frame_layout = QVBoxLayout(frame)
+            frame_layout.addWidget(input_box)
+
+            self.values_layout.addRow(label, frame)
+
+        # Add input boxes for selected X variates
+        for x_value in self.selected_x_values:
+            label = QLabel(f"{x_value} = ")
+            input_box = QLineEdit()
+            input_box.textChanged.connect(self.on_value_changed)
+            
+            frame = QFrame()
+            frame.setFrameShape(QFrame.Box)
+            frame.setStyleSheet("QFrame { border: 1px solid #0288d1; }")
+
+            frame_layout = QVBoxLayout(frame)
+            frame_layout.addWidget(input_box)
+
+            self.values_layout.addRow(label, frame)
+
+        self.values_widget.show()
+
+    def get_input_value(self, selected_values):
+        """Get the input value from the QLineEdit widgets inside the QFrames."""
+        input_values = {}
+        for i in range(self.values_layout.rowCount()):
+            label_item = self.values_layout.itemAt(i, QFormLayout.LabelRole)
+            widget_item = self.values_layout.itemAt(i, QFormLayout.FieldRole)
+            if label_item and widget_item:
+                label_text = label_item.widget().text().split('=')[0].strip()
+                if label_text in selected_values:
+                    frame = widget_item.widget()
+                    if isinstance(frame, QFrame):
+                        input_box = frame.findChild(QLineEdit)
+                        if input_box:
+                            input_values[label_text] = input_box.text()
+        return input_values
+    
+    def on_value_changed(self):
+        self.y_value = self.get_input_value(self.selected_y_values)
+        self.x_value = self.get_input_value(self.selected_x_values)
         self.update_title()
+
+    def on_create_plot_button_clicked(self):
+        current_size = self.size()
+
+        scroll_area_width = int(current_size.width() * 0.5)  # 50% of the width
+        scroll_area_height = int(current_size.height() * 0.30) # 30% of the height
+
+        self.scroll_area.setFixedSize(scroll_area_width, scroll_area_height)
+
+        # run_pr_function(self.results_display)

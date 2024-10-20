@@ -161,8 +161,8 @@ class LearnPage(QWidget):
         # Extract the base name of the CSV file (without extension)
         datafile_name = os.path.splitext(csv_file)[0]
 
-        # Generate the output directory under 'files/learnt/'
-        outputdir = f"files/learnt/{datafile_name}"
+        # Generate the output directory under LEARNT_FOLDER
+        outputdir = os.path.join(LEARNT_FOLDER, datafile_name)
 
         # Show a message box to indicate the learn function is running
         running_message = QMessageBox(self)
