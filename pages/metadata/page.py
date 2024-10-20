@@ -1,7 +1,8 @@
 import os
 import pandas as pd
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem,
-                               QComboBox, QHBoxLayout, QListWidget, QGroupBox, QStackedWidget, QMessageBox, QFileDialog)
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
+                               QComboBox, QGridLayout, QListWidget, QGroupBox, QStackedWidget, QMessageBox, QFileDialog,
+                               QLabel, QSpacerItem, QSizePolicy)
 from PySide6.QtCore import Qt
 from r_integration.inferno_functions import build_metadata
 import json
@@ -56,52 +57,106 @@ class MetadataPage(QWidget):
     def create_file_management_panel(self):
         """Create the panel for managing uploaded files and metadata generation."""
         self.file_management_panel = QWidget()
-        layout = QVBoxLayout(self.file_management_panel)
+        layout = QGridLayout(self.file_management_panel)
 
-        ### DISPLAY UPLOADED FILES ###
-        # List widget to show uploaded files
+        # Title label
+        self.panel_title = QLabel("File Management & Metadata Generation")
+        font = self.panel_title.font()
+        font.setPointSize(20)
+        font.setBold(True)
+        self.panel_title.setFont(font)
+        self.panel_title.setAlignment(Qt.AlignHCenter)
+        self.panel_title.setContentsMargins(0, 20, 0, 0)
+        layout.addWidget(self.panel_title, 0, 0, 1, 2)  # Spanning 2 columns
+
+        # Add vertical spacer between title and group boxes
+        vertical_spacer = QSpacerItem(0, 30, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        layout.addItem(vertical_spacer, 1, 0, 1, 2)
+
+        # File list group box
         self.file_list_group = QGroupBox("Uploaded Files")
-        file_list_layout = QVBoxLayout(self.file_list_group)
+        self.file_list_group.setAlignment(Qt.AlignCenter)
+        file_list_layout = QVBoxLayout()
+        self.file_list_group.setLayout(file_list_layout)
         self.file_list = QListWidget()
         self.file_list.itemClicked.connect(lambda item: self.file_selected(item, UPLOAD_FOLDER))
         file_list_layout.addWidget(self.file_list)
-        layout.addWidget(self.file_list_group)
+        file_list_layout.setContentsMargins(20, 40, 10, 10) # top, left, bottom, right
 
-        # Button to upload new CSV
-        self.upload_button = QPushButton("Upload New CSV File")
-        self.upload_button.clicked.connect(self.upload_file)
-        layout.addWidget(self.upload_button)
-
-        # Button to generate metadata file for the selected file
-        self.generate_button = QPushButton("Generate Metadata File")
-        self.generate_button.clicked.connect(self.process_file)
-        layout.addWidget(self.generate_button)
-
-        # Button to delete the selected file
-        self.delete_file_button = QPushButton("Delete Uploaded File")
-        self.delete_file_button.clicked.connect(lambda: self.delete_file(self.file_list.currentItem(), UPLOAD_FOLDER))
-        layout.addWidget(self.delete_file_button)
-
-        ### DISPLAY METADATA FILES ###
+        # Metadata list group box
         self.metadata_list_group = QGroupBox("Metadata Files")
-        metadata_list_layout = QVBoxLayout(self.metadata_list_group)
+        self.metadata_list_group.setAlignment(Qt.AlignCenter)
+        metadata_list_layout = QVBoxLayout()
+        self.metadata_list_group.setLayout(metadata_list_layout)
         self.metadata_list = QListWidget()
         self.metadata_list.itemClicked.connect(lambda item: self.file_selected(item, METADATA_FOLDER))
         metadata_list_layout.addWidget(self.metadata_list)
-        layout.addWidget(self.metadata_list_group)
+        metadata_list_layout.setContentsMargins(10, 40, 20, 10) # top, left, bottom, right
 
-        # Button to modify the selected metadata file
+        # Buttons
+        width = 250
+
+        self.upload_button = QPushButton("Upload New CSV File")
+        self.upload_button.setFixedWidth(width)
+        self.upload_button.clicked.connect(self.upload_file)
+
         self.modify_button = QPushButton("Modify Metadata File")
+        self.modify_button.setFixedWidth(width)
         self.modify_button.clicked.connect(self.modify_metadata)
-        layout.addWidget(self.modify_button)
 
-        # Button to delete the selected metadata file
+        self.generate_button = QPushButton("Generate Metadata File")
+        self.generate_button.setFixedWidth(width)
+        self.generate_button.clicked.connect(self.process_file)
+
         self.delete_metadata_button = QPushButton("Delete Metadata File")
+        self.delete_metadata_button.setFixedWidth(width)
         self.delete_metadata_button.clicked.connect(lambda: self.delete_file(self.metadata_list.currentItem(), METADATA_FOLDER))
-        layout.addWidget(self.delete_metadata_button)
+
+        self.delete_file_button = QPushButton("Delete Uploaded File")
+        self.delete_file_button.setFixedWidth(width)
+        self.delete_file_button.clicked.connect(lambda: self.delete_file(self.file_list.currentItem(), UPLOAD_FOLDER))
+
+        # Create a grid layout for the buttons
+        buttons_layout = QGridLayout()
+        buttons_layout.setHorizontalSpacing(0)
+        buttons_layout.setVerticalSpacing(10)
+
+        # First row
+        buttons_layout.addWidget(self.upload_button, 0, 0, alignment=Qt.AlignHCenter)
+        buttons_layout.addWidget(self.modify_button, 0, 1, alignment=Qt.AlignHCenter)
+
+        # Second row
+        buttons_layout.addWidget(self.generate_button, 1, 0, alignment=Qt.AlignHCenter)
+        buttons_layout.addWidget(self.delete_metadata_button, 1, 1, alignment=Qt.AlignHCenter)
+
+        # Third row
+        buttons_layout.addWidget(self.delete_file_button, 2, 0, alignment=Qt.AlignHCenter)
+        # Optional: Add a placeholder to maintain alignment
+        buttons_layout.addItem(QSpacerItem(0, 0), 2, 1)
+
+        # Adjusted positions for group boxes and buttons layout
+        layout.addWidget(self.file_list_group, 2, 0)
+        layout.addWidget(self.metadata_list_group, 2, 1)
+        layout.addLayout(buttons_layout, 3, 0, 1, 2)  # Spanning 2 columns
+
+        # Add vertical spacer at the bottom
+        bottom_spacer = QSpacerItem(0, 20, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        layout.addItem(bottom_spacer, 4, 0, 1, 2)  # Spanning 2 columns
+
+        # Set row stretches
+        layout.setRowStretch(0, 0)  # Title does not stretch
+        layout.setRowStretch(1, 0)  # Spacer between title and group boxes does not stretch
+        layout.setRowStretch(2, 1)  # Group boxes stretch
+        layout.setRowStretch(3, 0)  # Buttons do not stretch
+        layout.setRowStretch(4, 0)  # Bottom spacer does not stretch
+
+        self.setLayout(layout)
+
 
         # Add the file management panel to the stacked widget
         self.stacked_widget.addWidget(self.file_management_panel)
+        self.stacked_widget.setCurrentWidget(self.file_management_panel)
+
 
     def create_metadata_editing_panel(self):
         """Create the panel for modifying the metadata file."""

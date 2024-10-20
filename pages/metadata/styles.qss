@@ -86,3 +86,8 @@ QToolTip {
     padding: 10px;
     font-size: 14px;
 }
+
+/* Title of the file lists */
+QGroupBox {
+    font-size: 20px;
+}
