@@ -2,8 +2,9 @@ import os
 import pandas as pd
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
                                QComboBox, QGridLayout, QListWidget, QGroupBox, QStackedWidget, QMessageBox, QFileDialog,
-                               QLabel, QSpacerItem, QSizePolicy)
+                               QLabel, QSpacerItem, QSizePolicy, QHBoxLayout, QAbstractScrollArea)
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from r_integration.inferno_functions import build_metadata
 import json
 
@@ -36,11 +37,11 @@ class MetadataPage(QWidget):
         self.create_file_management_panel()
         self.create_metadata_editing_panel()
 
-        # Set the layout for the page
-        self.setLayout(layout)
-
         # Set default panel to file management panel
         self.stacked_widget.setCurrentWidget(self.file_management_panel)
+
+        # Set the layout for the page
+        self.setLayout(layout)
 
         # Apply the stylesheet
         with open('pages/metadata/styles.qss', 'r') as f:
@@ -57,7 +58,7 @@ class MetadataPage(QWidget):
     def create_file_management_panel(self):
         """Create the panel for managing uploaded files and metadata generation."""
         self.file_management_panel = QWidget()
-        layout = QGridLayout(self.file_management_panel)
+        layout = QGridLayout()
 
         # Title label
         self.panel_title = QLabel("File Management & Metadata Generation")
@@ -66,7 +67,7 @@ class MetadataPage(QWidget):
         font.setBold(True)
         self.panel_title.setFont(font)
         self.panel_title.setAlignment(Qt.AlignHCenter)
-        self.panel_title.setContentsMargins(0, 20, 0, 0)
+        self.panel_title.setContentsMargins(0, 0, 0, 0) # left, top, right, bottom
         layout.addWidget(self.panel_title, 0, 0, 1, 2)  # Spanning 2 columns
 
         # Add vertical spacer between title and group boxes
@@ -81,7 +82,7 @@ class MetadataPage(QWidget):
         self.file_list = QListWidget()
         self.file_list.itemClicked.connect(lambda item: self.file_selected(item, UPLOAD_FOLDER))
         file_list_layout.addWidget(self.file_list)
-        file_list_layout.setContentsMargins(20, 40, 10, 10) # top, left, bottom, right
+        file_list_layout.setContentsMargins(20, 40, 10, 10) # left, top, right, bottom
 
         # Metadata list group box
         self.metadata_list_group = QGroupBox("Metadata Files")
@@ -91,7 +92,7 @@ class MetadataPage(QWidget):
         self.metadata_list = QListWidget()
         self.metadata_list.itemClicked.connect(lambda item: self.file_selected(item, METADATA_FOLDER))
         metadata_list_layout.addWidget(self.metadata_list)
-        metadata_list_layout.setContentsMargins(10, 40, 20, 10) # top, left, bottom, right
+        metadata_list_layout.setContentsMargins(10, 40, 20, 10) # left, top, right, bottom
 
         # Buttons
         width = 250
@@ -150,32 +151,52 @@ class MetadataPage(QWidget):
         layout.setRowStretch(3, 0)  # Buttons do not stretch
         layout.setRowStretch(4, 0)  # Bottom spacer does not stretch
 
-        self.setLayout(layout)
-
+        self.file_management_panel.setLayout(layout)
 
         # Add the file management panel to the stacked widget
         self.stacked_widget.addWidget(self.file_management_panel)
-        self.stacked_widget.setCurrentWidget(self.file_management_panel)
 
 
     def create_metadata_editing_panel(self):
         """Create the panel for modifying the metadata file."""
         self.metadata_editing_panel = QWidget()
-        layout = QVBoxLayout(self.metadata_editing_panel)
+        layout = QVBoxLayout()
+
+        # Add title
+        self.meta_title = QLabel()
+        font = self.meta_title.font()
+        font.setPointSize(20)
+        font.setBold(True)
+        self.meta_title.setFont(font)
+        self.meta_title.setAlignment(Qt.AlignHCenter)
+        self.meta_title.setContentsMargins(0, 0, 0, 10) # left, top, right, bottom
+        layout.addWidget(self.meta_title)
 
         # Create the table widget to display the metadata
         self.table_widget = QTableWidget()
         layout.addWidget(self.table_widget)
 
+        # Create a horizontal layout for the buttons
+        button_width = 200
+        button_layout = QHBoxLayout()
+        button_layout.setAlignment(Qt.AlignHCenter)
+        button_layout.setContentsMargins(0, 10, 0, 0) # left, top, right, bottom
+
         # Button to save the metadata file
-        self.save_button = QPushButton("Save Metadata")
+        self.save_button = QPushButton("Save Changes")
         self.save_button.clicked.connect(self.save_metadata_file)
-        layout.addWidget(self.save_button)
+        self.save_button.setFixedWidth(button_width)
+        button_layout.addWidget(self.save_button)
 
         # Button to go back to the file management panel
-        self.back_button = QPushButton("Back to File Management")
+        self.back_button = QPushButton("Discard Changes")
         self.back_button.clicked.connect(self.go_back)
-        layout.addWidget(self.back_button)
+        self.back_button.setFixedWidth(button_width)
+        button_layout.addWidget(self.back_button)
+
+        layout.addLayout(button_layout)
+
+        self.metadata_editing_panel.setLayout(layout)
 
         # Add the metadata editing panel to the stacked widget
         self.stacked_widget.addWidget(self.metadata_editing_panel)
@@ -227,14 +248,16 @@ class MetadataPage(QWidget):
     def process_file(self):
         """Generate metadata for the selected uploaded file."""
         if self.selected_file_path:
-            try:
-                # Generate metadata using the inferno function
-                self.metadata_file_path = build_metadata(self.selected_file_path, f"files/metadata/metadata_{os.path.basename(self.selected_file_path)}")
-                self.display_metadata(self.metadata_file_path)
-                self.stacked_widget.setCurrentWidget(self.metadata_editing_panel)
-                QMessageBox.information(self, "Success", "Metadata generated successfully.")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to generate metadata: {str(e)}")
+            metadata_file_name = f"metadata_{os.path.basename(self.selected_file_path)}"
+            metadata_file_path = os.path.join(METADATA_FOLDER, metadata_file_name)
+
+            self.metadata_file_path = build_metadata(self.selected_file_path, metadata_file_path)
+            self.file_manager.refresh()
+
+            self.display_metadata(self.metadata_file_path)
+            self.stacked_widget.setCurrentWidget(self.metadata_editing_panel)
+
+            QMessageBox.information(self, "Success", "Metadata generated successfully.")
         else:
             QMessageBox.warning(self, "No File Selected", "Please select a file to generate metadata.")
 
@@ -248,18 +271,29 @@ class MetadataPage(QWidget):
 
     def display_metadata(self, metadata_file_path):
         """Display metadata in the table widget with tooltips."""
+       
+        # Read the metadata file into a DataFrame
         metadata_df = pd.read_csv(metadata_file_path)
+        metadata_df = metadata_df.fillna('')
         
         # Set row and column count based on DataFrame
         self.table_widget.setRowCount(len(metadata_df))
         self.table_widget.setColumnCount(len(metadata_df.columns))
         self.table_widget.setHorizontalHeaderLabels(metadata_df.columns)
 
+        header_font = QFont()
+        header_font.setPointSize(16)
+
         # Set tooltips for headers
         for i, column_name in enumerate(metadata_df.columns):
             header_item = self.table_widget.horizontalHeaderItem(i)
+            header_item.setFont(header_font)
             if column_name in header_tooltips:  # Use header_tooltips from the JSON file
                 header_item.setToolTip(header_tooltips[column_name])
+
+        row_height = 40
+        for row in range(self.table_widget.rowCount()):
+            self.table_widget.setRowHeight(row, row_height)
 
         # Fill the table with data from the DataFrame and set tooltips for the cells
         for i, row in metadata_df.iterrows():
@@ -283,6 +317,9 @@ class MetadataPage(QWidget):
                     item = QTableWidgetItem(str(value))
                     self.table_widget.setItem(i, j, item)
 
+        # Update the title of the metadata editing panel
+        self.meta_title.setText(f"Editing Metadata File: {os.path.basename(metadata_file_path)}")
+
 
     def save_metadata_file(self):
         """Save the modified metadata file."""
@@ -305,6 +342,7 @@ class MetadataPage(QWidget):
             metadata_df.loc[i] = row
         metadata_df.to_csv(metadata_file_path, index=False)
         QMessageBox.information(self, "Metadata Saved", "Metadata file saved successfully.")
+        self.stacked_widget.setCurrentWidget(self.file_management_panel)
 
     def go_back(self):
         """Return to the file management panel."""
