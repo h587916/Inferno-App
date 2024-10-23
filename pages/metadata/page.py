@@ -76,9 +76,10 @@ class MetadataPage(QWidget):
 
         # File list group box
         self.file_list_group = QGroupBox("Uploaded Files")
-        self.file_list_group.setAlignment(Qt.AlignCenter)
+        self.file_list_group.setAlignment(Qt.AlignHCenter)
         file_list_layout = QVBoxLayout()
         self.file_list_group.setLayout(file_list_layout)
+
         self.file_list = QListWidget()
         self.file_list.itemClicked.connect(lambda item: self.file_selected(item, UPLOAD_FOLDER))
         file_list_layout.addWidget(self.file_list)
@@ -86,9 +87,10 @@ class MetadataPage(QWidget):
 
         # Metadata list group box
         self.metadata_list_group = QGroupBox("Metadata Files")
-        self.metadata_list_group.setAlignment(Qt.AlignCenter)
+        self.metadata_list_group.setAlignment(Qt.AlignHCenter)
         metadata_list_layout = QVBoxLayout()
         self.metadata_list_group.setLayout(metadata_list_layout)
+        
         self.metadata_list = QListWidget()
         self.metadata_list.itemClicked.connect(lambda item: self.file_selected(item, METADATA_FOLDER))
         metadata_list_layout.addWidget(self.metadata_list)
@@ -294,6 +296,9 @@ class MetadataPage(QWidget):
         row_height = 40
         for row in range(self.table_widget.rowCount()):
             self.table_widget.setRowHeight(row, row_height)
+
+        type_column = metadata_df.columns.get_loc("type")
+        self.table_widget.setColumnWidth(type_column, 130)
 
         # Fill the table with data from the DataFrame and set tooltips for the cells
         for i, row in metadata_df.iterrows():

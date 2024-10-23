@@ -1,21 +1,3 @@
-/* ComboBox Style */
-QComboBox {
-    background-color: white;
-    color: black;
-}
-QComboBox:hover {
-    background-color: white;
-}
-QComboBox QAbstractItemView {
-    background-color: white;
-    border: 1px solid #ddd;
-    selection-background-color: white; 
-    selection-color: white;
-}
-QComboBox QAbstractItemView::item {
-    padding: 5px;
-}
-
 /* MessageBox Style */
 QMessageBox {
     background-color: white;

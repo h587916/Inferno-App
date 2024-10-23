@@ -15,6 +15,7 @@ QComboBox QAbstractItemView {
 
 /* Button Style */
 QPushButton {
+    border: 1px solid black;
     background-color: #0288d1;
     color: white;
     border-radius: 5px;
@@ -27,13 +28,42 @@ QPushButton:pressed {
     background-color: #01579b;
 }
 
-/* MessageBox Style */
-QMessageBox {
+/* ListWidget Style */
+QListWidget {
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 5px;
     background-color: white;
 }
+QListWidget::item {
+    padding: 10px;
+}
+QListWidget::item:selected {
+    background-color: #f0f0f0;
+    color: black;
+}
+QListWidget::item:hover {
+    background-color: #e0e0e0;
+    color: black;
+}
+
 
 /* Input Dialog Style */
 QInputDialog {
     background-color: white;
 }
 
+/* MessageBox Style */
+QMessageBox {
+    background-color: white;
+}
+
+/* Title of the file lists */
+QGroupBox {
+    font-size: 20px;
+}
+
+/* Dialog Style */
+QDialog {
+    background-color: white;
+} 
