@@ -1,0 +1,10 @@
+name,type,domainmin,domainmax,datastep,minincluded,maxincluded,V1,V2,V3,V4,V5,V6,V7,V8,V9,V10,V11
+StudentID,ordinal,1,10,1,,,,,,,,,,,,,
+Name,nominal,,,,,,Alex,Daniel,Emma,Isabella,James,John,Michael,Olivia,Sarah,Sophia,
+Gender,nominal,,,,,,Female,Male,,,,,,,,,
+AttendanceRate,ordinal,70,95,1,,,,,,,,,,,,,
+StudyHoursPerWeek,ordinal,8,30,1,,,,,,,,,,,,,
+PreviousGrade,ordinal,60,90,1,,,,,,,,,,,,,
+ExtracurricularActivities,ordinal,0,3,1,,,,,,,,,,,,,
+ParentalSupport,nominal,,,,,,High,Low,Medium,,,,,,,,
+FinalGrade,ordinal,62,92,1,,,,,,,,,,,,,

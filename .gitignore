@@ -1,4 +1,3 @@
 venv
-files/*
 logs/*
 __pycache__
