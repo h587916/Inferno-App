@@ -1,22 +1,32 @@
-from PySide6.QtWidgets import QWidget, QSizePolicy, QSpacerItem, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, QComboBox, QListWidget, QTextEdit, QAbstractItemView, QFormLayout, QLineEdit
+import os
+import json
+import numpy as np
+import pandas as pd
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, 
+                                QComboBox, QListWidget, QFileDialog, QAbstractItemView, QFormLayout, QLineEdit, 
+                                QFrame, QMessageBox, QSizePolicy, QAbstractItemView, QSpacerItem, QDialog)
 from PySide6.QtCore import Qt
-from pages.plotting.probability import load_pr_variables, run_pr_function
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from r_integration.inferno_functions import run_Pr
+from scipy.interpolate import make_interp_spline
 
+UPLOAD_FOLDER = 'files/uploads/'
+LEARNT_FOLDER = 'files/learnt/'
+
+class CustomComboBox(QComboBox):
+    def wheelEvent(self, event):
+        event.ignore()
 
 class PlottingPage(QWidget):
     def __init__(self, file_manager):
         super().__init__()
         self.file_manager = file_manager
+        self.plot = False
 
-        # Main layout for the Plotting page
         main_layout = QVBoxLayout()
 
         # Set title
-        self.Y_label = "Y"
-        self.X_label = "X"
-        self.y_value = "y"
-        self.x_value = "x"
-        self.data = "data"
         self.title_label = QLabel()
         self.title_label.setWordWrap(True)
         self.title_label.setAlignment(Qt.AlignCenter)
@@ -24,19 +34,17 @@ class PlottingPage(QWidget):
         main_layout.addWidget(self.title_label)
 
         # Area to display results
-        self.results_display = QTextEdit()
-        self.results_display.setReadOnly(True)
-        main_layout.addWidget(QLabel("Results:"))
-        main_layout.addWidget(self.results_display)
+        self.plot_canvas = None
+        self.plot_layout = QVBoxLayout()
+        main_layout.addLayout(self.plot_layout)
 
         # Create the QScrollArea
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)  # Make sure the widget inside resizes appropriately
-        self.scroll_area.setMinimumWidth(1000)  # Set a minimum width to ensure the scroll area is not too narrow
 
         # Set a frame around the scroll area
-        self.scroll_area.setFrameShape(QFrame.Box)  # Set frame shape
-        self.scroll_area.setStyleSheet("QScrollArea { border: 1px solid black; }")  # Set black frame color
+        self.scroll_area.setFrameShape(QFrame.Box) 
+        self.scroll_area.setStyleSheet("QScrollArea { border: 1px solid black; }") 
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
@@ -46,12 +54,12 @@ class PlottingPage(QWidget):
 
         # Set spacing and margin adjustments for compact appearance
         content_layout.setSpacing(5)  # Adjust this value for more or less space between rows
-        content_layout.setContentsMargins(50, 20, 50, 20)  # Reduce margins for a more compact look
+        content_layout.setContentsMargins(50, 20, 50, 20)  # left, top, right, bottom
 
-        # Learnt folder selection (with fixed label width)
-        learnt_layout = QHBoxLayout()  # Create a horizontal layout for learnt folder selection
+        # Learnt folder selection
+        learnt_layout = QHBoxLayout()
         learnt_label = QLabel("Select a learnt folder:")
-        self.pr_learnt_combobox = QComboBox()
+        self.pr_learnt_combobox = CustomComboBox()
         self.pr_learnt_combobox.currentIndexChanged.connect(self.on_learnt_folder_selected)
         fixed_label_width = 120  # You can adjust this to ensure both labels end at the same point
         learnt_label.setFixedWidth(fixed_label_width)
@@ -60,10 +68,10 @@ class PlottingPage(QWidget):
         learnt_layout.setSpacing(5)  # Adjust the spacing between label and combobox
         content_layout.addLayout(learnt_layout)
 
-        # Dataset selection (with fixed label width)
-        dataset_layout = QHBoxLayout()  # Create a horizontal layout for dataset selection
+        # Dataset selection
+        dataset_layout = QHBoxLayout() 
         dataset_label = QLabel("Select a dataset:")
-        self.pr_dataset_combobox = QComboBox()
+        self.pr_dataset_combobox = CustomComboBox()
         self.pr_dataset_combobox.currentIndexChanged.connect(self.on_dataset_selected_pr)
         dataset_label.setFixedWidth(fixed_label_width)
         dataset_label.setStyleSheet("padding-left: 23px;")
@@ -101,7 +109,7 @@ class PlottingPage(QWidget):
 
         # Combobox for selecting which variate should have a ranged value
         self.ranged_value_label = QLabel("Which variable should be plotted against the X axis?")
-        self.ranged_value_combobox = QComboBox()
+        self.ranged_value_combobox = CustomComboBox()
         self.ranged_value_combobox.currentIndexChanged.connect(self.on_ranged_value_selected)
         self.ranged_value_label.hide()
         self.ranged_value_combobox.hide()
@@ -120,17 +128,42 @@ class PlottingPage(QWidget):
 
         # Create an intermediate layout to center the scroll_area
         intermediate_layout = QVBoxLayout()
-        intermediate_layout.addStretch(1.0)  # Add stretch at the top to push the scroll area down
         intermediate_layout.addWidget(self.scroll_area, alignment=Qt.AlignCenter)  # Center the scroll area
-        intermediate_layout.addStretch()  # Add stretch at the bottom to push the scroll area up
 
         # Add the intermediate layout to the main layout
         main_layout.addLayout(intermediate_layout)
 
+        # Create a horizontal layout for the buttons
+        button_layout = QHBoxLayout()
+        button_layout.setAlignment(Qt.AlignCenter)
+        button_layout.setContentsMargins(0, 10, 0, 10)  # left, top, right, bottom
+
         # Button to run the Pr function
-        create_plot_button = QPushButton("Create Plot")
+        create_plot_button = QPushButton("Generate Plot")
         create_plot_button.clicked.connect(self.on_create_plot_button_clicked)
-        main_layout.addWidget(create_plot_button)
+        create_plot_button.setFixedWidth(150)
+        button_layout.addWidget(create_plot_button)
+
+        # Add a spacer to separate the buttons
+        spacer = QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Minimum)
+        button_layout.addItem(spacer)
+
+        # Button to configure plot settings
+        configure_plot_button = QPushButton("Configure Plot")
+        configure_plot_button.clicked.connect(self.configure_plot)
+        configure_plot_button.setFixedWidth(150)
+        button_layout.addWidget(configure_plot_button)
+
+        button_layout.addItem(spacer)
+
+        # Button to save the plot
+        download_plot_button = QPushButton("Download Plot")
+        download_plot_button.clicked.connect(self.download_plot)
+        download_plot_button.setFixedWidth(150)
+        button_layout.addWidget(download_plot_button)
+
+        # Add the button layout to the main layout
+        main_layout.addLayout(button_layout)
 
         # Set layout
         self.setLayout(main_layout)
@@ -157,12 +190,15 @@ class PlottingPage(QWidget):
         # Get the size of the main window
         current_size = self.size()
 
-        # Set a percentage of the available space for the scroll area, for example, 80% of the height and 100% of the width
-        scroll_area_width = int(current_size.width() * 0.5)  # 50% of the width
-        scroll_area_height = int(current_size.height() * 0.8)  # 35% of the height
-
-        # Update the size of the scroll area
-        self.scroll_area.setFixedSize(scroll_area_width, scroll_area_height)
+        # Set a percentage of the available space for the scroll area
+        scroll_area_width = int(current_size.width() * 0.50)  # 50% of the width
+        self.scroll_area.setFixedWidth(scroll_area_width)
+        if self.plot:
+            scroll_area_height = int(current_size.height() * 0.30) # 30% of the height
+            self.scroll_area.setFixedHeight(scroll_area_height)
+        else:
+            scroll_area_height = int(current_size.height() * 0.80) # 80% of the height
+            self.scroll_area.setFixedHeight(scroll_area_height)
 
         # Call the base class's resizeEvent to ensure normal behavior
         super().resizeEvent(event)
@@ -171,18 +207,21 @@ class PlottingPage(QWidget):
         """Update the title based on the selected values and input values."""
         y_values = self.get_input_value(self.selected_y_values)
         x_values = self.get_input_value(self.selected_x_values)
+        data = self.pr_learnt_combobox.currentText()
 
-        y_labels = ", ".join([f"{label}={y_values.get(label, '')}" for label in self.selected_y_values])
-        x_labels = ", ".join([f"{label}={x_values.get(label, '')}" for label in self.selected_x_values])
+        y_labels = ", ".join([f"{label}={y_values.get(label, '') or 'y'}" for label in self.selected_y_values])
+        x_labels = ", ".join([f"{label}={x_values.get(label, '') or 'x'}" for label in self.selected_x_values])
 
         if y_labels and x_labels:
-            title = f"P({y_labels} | {x_labels}, {self.data})"
+            title = f"P({y_labels} | {x_labels}, {data})"
         elif y_labels:
             title = f"P({y_labels} | {self.data})"
         elif x_labels:
-            title = f"P({self.Y_label}={self.y_value} | {x_labels}, {self.data})"
+            title = f"P(Y=y | {x_labels}, {data})"
+        elif data:
+            title = f"P(Y=y | X=x, {data})"
         else:
-            title = f"P({self.Y_label}={self.y_value} | {self.X_label}={self.x_value}, {self.data})"
+            title = "P(Y=y | X=x, data)"
 
         self.title_label.setText(title)
 
@@ -207,10 +246,24 @@ class PlottingPage(QWidget):
         """Load variables only when a dataset is selected by the user."""
         # Ensure an item is selected (index >= 0)
         if index >= 0:
-            load_pr_variables(self.pr_dataset_combobox, self.Y_listwidget, self.X_listwidget)
+            # Load variables for the new dataset
+            self.load_pr_variables()
             self.Y_label_widget.show()
             self.X_label_widget.show()
 
+            # Clear selections in Y and X list widgets
+            self.Y_listwidget.clearSelection()
+            self.X_listwidget.clearSelection()
+
+            # Reset selected variables lists
+            self.selected_y_values = []
+            self.selected_x_values = []
+
+            # Clear any input values in the input boxes
+            self.clear_values_layout()
+
+            # Update the title to reset it to default
+            self.update_title()
 
     def load_result_folders_pr(self):
         """Load learnt folders into the PR learnt combobox from the FileManager."""
@@ -222,6 +275,8 @@ class PlottingPage(QWidget):
         else:
             self.pr_learnt_combobox.addItem("No learnt folders available")
             self.pr_learnt_combobox.setItemData(1, Qt.NoItemFlags)
+        
+        self.update_title()
 
     def on_learnt_folder_selected(self, index):
         """Update the data value when a learnt folder is selected."""
@@ -285,6 +340,7 @@ class PlottingPage(QWidget):
         for y_value in self.selected_y_values:
             label = QLabel(f"{y_value} = ")
             input_box = QLineEdit()
+            input_box.setPlaceholderText("y")
             input_box.textChanged.connect(self.on_value_changed)
 
             frame = QFrame()
@@ -300,6 +356,7 @@ class PlottingPage(QWidget):
         for x_value in self.selected_x_values:
             label = QLabel(f"{x_value} = ")
             input_box = QLineEdit()
+            input_box.setPlaceholderText("x")
             input_box.textChanged.connect(self.on_value_changed)
             
             frame = QFrame()
@@ -335,11 +392,297 @@ class PlottingPage(QWidget):
         self.update_title()
 
     def on_create_plot_button_clicked(self):
+        self.plot = True
+        
         current_size = self.size()
-
         scroll_area_width = int(current_size.width() * 0.5)  # 50% of the width
         scroll_area_height = int(current_size.height() * 0.30) # 30% of the height
-
         self.scroll_area.setFixedSize(scroll_area_width, scroll_area_height)
 
-        # run_pr_function(self.results_display)
+        self.run_pr_function()
+
+    def load_pr_variables(self):
+        """Load available variables for the Pr function."""
+        selected_dataset = self.pr_dataset_combobox.currentText()
+
+        if selected_dataset == "No datasets available":
+            QMessageBox.warning(None, "Error", "Please select a valid dataset.")
+            return
+        
+        dataset_path = os.path.join(UPLOAD_FOLDER, selected_dataset)
+
+        try:
+            # Open and close the file safely to avoid permission errors
+            with open(dataset_path, 'r') as f:
+                data = pd.read_csv(f)
+
+            # Clear previous items in list widgets
+            self.Y_listwidget.clear()
+            self.X_listwidget.clear()
+
+            # Populate the list widgets with column names
+            self.Y_listwidget.addItems(data.columns)
+            self.X_listwidget.addItems(data.columns)
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"Failed to load dataset variables: {str(e)}")
+
+    def run_pr_function(self):
+
+        # Get input values for Y and X
+        y_values = self.get_input_value(self.selected_y_values)
+        x_values = self.get_input_value(self.selected_x_values)
+
+        # Parse input values to get lists
+        Y_dict = {}
+        for var_name, value_string in y_values.items():
+            value_list = self.parse_input_value(value_string)
+            if not value_list:
+                QMessageBox.warning(None, "Invalid Input", f"Invalid input for {var_name}: {value_string}")
+                return
+            Y_dict[var_name] = value_list
+
+        X_dict = {}
+        for var_name, value_string in x_values.items():
+            value_list = self.parse_input_value(value_string)
+            if not value_list:
+                QMessageBox.warning(None, "Invalid Input", f"Invalid input for {var_name}: {value_string}")
+                return
+            X_dict[var_name] = value_list
+
+        # Create DataFrames
+        self.Y = pd.DataFrame(Y_dict)
+        self.X = pd.DataFrame(X_dict)
+        
+        learnt_dir = os.path.join(LEARNT_FOLDER, self.pr_learnt_combobox.currentText())
+
+        try:
+            self.probabilities_values, self.probabilities_quantiles = run_Pr(self.Y, learnt_dir, self.X)
+
+            if self.should_plot(self.Y, self.X):
+                self.plot_probabilities()
+        
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"Failed to run the Pr function: {str(e)}")
+
+    def parse_input_value(self, value_string):
+        if ':' in value_string:
+            # It's a range
+            start_str, end_str = value_string.split(':', 1)
+            # Remove any parentheses or whitespace
+            start_str = start_str.strip().strip('()')
+            end_str = end_str.strip().strip('()')
+            # Convert to numbers
+            try:
+                start_val = float(start_str)
+                end_val = float(end_str)
+                # Decide on the number of points
+                num_points = int(abs(end_val - start_val)) + 1
+                if start_val.is_integer() and end_val.is_integer():
+                    # Use integers
+                    value_list = list(range(int(start_val), int(end_val) + 1))
+                else:
+                    # Use numpy.linspace for floats
+                    value_list = np.linspace(start_val, end_val, num=num_points).tolist()
+            except ValueError:
+                # Handle error
+                QMessageBox.warning(None, "Invalid Input", f"Invalid range input: {value_string}")
+                value_list = []
+        else:
+            # Single value
+            value_list = [value_string.strip()]
+        return value_list
+
+    def should_plot(self, Y, X):
+        # Check if any column in Y has multiple values and is numeric
+        for column in Y.columns:
+            if len(Y[column].unique()) > 1 and pd.api.types.is_numeric_dtype(Y[column]):
+                return True
+        
+        # Check if any column in X has multiple values and is numeric
+        for column in X.columns:
+            if len(X[column].unique()) > 1 and pd.api.types.is_numeric_dtype(X[column]):
+                return True
+        
+        # Do not plot
+        return False
+
+    def plot_probabilities(self):
+        self.load_configuration()
+
+        # Clear previous plot if any
+        if self.plot_canvas is not None:
+            self.plot_layout.removeWidget(self.plot_canvas)
+            self.plot_canvas.deleteLater()
+            self.plot_canvas = None
+
+        # Create a Figure and FigureCanvas
+        figure = Figure()
+        ax = figure.add_subplot(111)
+        self.plot_canvas = FigureCanvas(figure)
+        self.plot_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Add the canvas to the plot_layout
+        self.plot_layout.addWidget(self.plot_canvas)
+
+        # Extract the column name dynamically from Y_values
+        y_column = self.Y.columns[0]
+
+        # Convert to numpy arrays
+        probabilities_values = np.array(self.probabilities_values).flatten()
+        probabilities_quantiles = np.array(self.probabilities_quantiles)
+
+        # Ensure quantiles array is correctly shaped for plotting
+        if probabilities_quantiles.ndim == 3:
+            lower_quantiles = probabilities_quantiles[:, 0, 0]
+            upper_quantiles = probabilities_quantiles[:, 0, -1]
+        elif probabilities_quantiles.ndim == 2 and probabilities_quantiles.shape[1] >= 2:
+            lower_quantiles = probabilities_quantiles[:, 0]
+            upper_quantiles = probabilities_quantiles[:, -1]
+        else:
+            lower_quantiles = np.zeros(self.Y.shape[0])
+            upper_quantiles = np.zeros(self.Y.shape[0])
+
+        # Plot the quantiles
+        ax.fill_between(
+            self.Y[y_column], 
+            lower_quantiles, 
+            upper_quantiles,
+            color=self.color_uncertainty_area, 
+            alpha=self.alpha_uncertainty_area, 
+            edgecolor='darkblue', 
+            linewidth=self.width_uncertainty_area,
+            label='Uncertainty'
+        )
+
+        ax.set_ylim(0, None)
+        ax.set_xlabel(y_column)
+        ax.set_ylabel('Probability')
+
+        # Overlay the probability distribution curve
+        # Interpolate to make the plot look smoother
+        spl = make_interp_spline(self.Y[y_column], probabilities_values, k=3)
+        Y_smooth = np.linspace(self.Y[y_column].min(), self.Y[y_column].max(), 500)
+        prob_smooth = spl(Y_smooth)
+
+        ax.plot(Y_smooth, prob_smooth, color=self.color_probability_curve, linewidth=self.width_probability_curve, linestyle='-', label='Probability')
+
+        # Add the 0-change line
+        ax.axvline(x=0, color=self.color_zero_change_line, linestyle='--', linewidth=self.width_zero_change_line, label='0-change Line')
+
+        # Add legend to explain the components of the plot
+        ax.legend()
+
+        # Draw the canvas
+        self.plot_canvas.draw()
+
+    def load_configuration(self):
+        """Load configuration from JSON file"""
+        with open('pages/plotting/config.json', 'r') as f:
+            config = json.load(f)
+            self.color_probability_curve = config.get('plot_colors').get('probability_curve')
+            self.color_uncertainty_area = config.get('plot_colors').get('uncertainty_area')
+            self.color_zero_change_line = config.get('plot_colors').get('zero_change_line')
+            self.width_probability_curve = config.get('line_widths').get('probability_curve')
+            self.width_zero_change_line = config.get('line_widths').get('zero_change_line')
+            self.width_uncertainty_area = config.get('line_widths').get('uncertainty_area')
+            self.alpha_uncertainty_area = config.get('alpha_values').get('uncertainty_area')
+            self.xlabel = config.get('x_label')
+            self.ylabel = config.get('y_label')
+
+    def configure_plot(self):
+        """Open a dialog to configure plot settings."""
+        self.load_configuration()
+
+        dialog = QDialog(self)
+        dialog.setMinimumWidth(300)
+        dialog.setWindowTitle("Configure Plot Settings")
+
+        layout = QFormLayout()
+
+        self.color_probability_curve_edit = QLineEdit(self.color_probability_curve)
+        self.color_uncertainty_area_edit = QLineEdit(self.color_uncertainty_area)
+        self.color_zero_change_line_edit = QLineEdit(self.color_zero_change_line)
+        self.width_probability_curve_edit = QLineEdit(str(self.width_probability_curve))
+        self.width_zero_change_line_edit = QLineEdit(str(self.width_zero_change_line))
+        self.width_uncertainty_area_edit = QLineEdit(str(self.width_uncertainty_area))
+        self.alpha_uncertainty_area_edit = QLineEdit(str(self.alpha_uncertainty_area))
+        self.xlabel_edit = QLineEdit(self.xlabel)
+        self.ylabel_edit = QLineEdit(self.ylabel)
+
+        layout.addRow("Probability Curve Color:", self.color_probability_curve_edit)
+        layout.addRow("Uncertainty Area Color:", self.color_uncertainty_area_edit)
+        layout.addRow("Zero Change Line Color:", self.color_zero_change_line_edit)
+        layout.addRow("Probability Curve Width:", self.width_probability_curve_edit)
+        layout.addRow("Zero Change Line Width:", self.width_zero_change_line_edit)
+        layout.addRow("Uncertainty Area Width:", self.width_uncertainty_area_edit)
+        layout.addRow("Uncertainty Area Alpha:", self.alpha_uncertainty_area_edit)
+        layout.addRow("X-axis Label:", self.xlabel_edit)
+        layout.addRow("Y-axis Label:", self.ylabel_edit)
+
+        save_button = QPushButton("Save")
+        save_button.clicked.connect(lambda: self.save_configuration(dialog))
+
+        layout.addWidget(save_button)
+        dialog.setLayout(layout)
+        dialog.exec_()
+
+        if self.plot:
+            self.plot_probabilities()
+
+    def save_configuration(self, dialog):
+        # Save configurations to a JSON file (config.json)
+        
+        # TODO: get the values from the QLineEdits and save them to a JSON file
+        self.color_probability_curve = self.color_probability_curve_edit.text()
+        self.color_uncertainty_area = self.color_uncertainty_area_edit.text()
+        self.color_zero_change_line = self.color_zero_change_line_edit.text()
+        self.width_probability_curve = int(self.width_probability_curve_edit.text())
+        self.width_zero_change_line = int(self.width_zero_change_line_edit.text())
+        self.width_uncertainty_area = int(self.width_uncertainty_area_edit.text())
+        self.alpha_uncertainty_area = float(self.alpha_uncertainty_area_edit.text())
+        self.xlabel = self.xlabel_edit.text()
+        self.ylabel = self.ylabel_edit.text()
+
+        config = {
+            "plot_colors": {
+                "probability_curve": self.color_probability_curve,
+                "uncertainty_area": self.color_uncertainty_area,
+                "zero_change_line": self.color_zero_change_line
+            },
+            "line_widths": {
+                "probability_curve": self.width_probability_curve,
+                "zero_change_line": self.width_zero_change_line,
+                "uncertainty_area": self.width_uncertainty_area
+            },
+            "alpha_values": {
+                "uncertainty_area": self.alpha_uncertainty_area
+            },
+            "x_label": self.xlabel,
+            "y_label": self.ylabel
+        }
+        with open('pages/plotting/config.json', 'w') as f:
+            json.dump(config, f)
+        dialog.accept()
+
+    def download_plot(self):
+        if self.plot_canvas is None:
+            QMessageBox.warning(self, "No Plot", "There is no plot to save.")
+            return
+
+        # Open a file dialog to choose save location and filename
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Plot As",
+            "",
+            "PNG Files (*.png);;JPEG Files (*.jpg);;PDF Files (*.pdf);;All Files (*)",
+            options=options
+        )
+
+        if file_path:
+            try:
+                # Save the figure
+                self.plot_canvas.figure.savefig(file_path)
+                QMessageBox.information(self, "Success", f"Plot saved to {file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save plot: {str(e)}")

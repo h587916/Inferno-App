@@ -1,1 +1,1 @@
-{"nsamples": 3600, "nchains": 60, "maxhours": "inf", "parallel": 12}
+{"nsamples": 3600, "nchains": 60, "maxhours": "inf", "seed": 16, "parallel": 12}

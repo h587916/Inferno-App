@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
                                QComboBox, QGridLayout, QListWidget, QGroupBox, QStackedWidget, QMessageBox, QFileDialog,
-                               QLabel, QSpacerItem, QSizePolicy, QHBoxLayout, QAbstractScrollArea)
+                               QLabel, QSpacerItem, QSizePolicy, QHBoxLayout, QLineEdit)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from r_integration.inferno_functions import build_metadata
@@ -17,6 +17,22 @@ combobox_item_tooltips = tooltips['combobox_item_tooltips']
 
 UPLOAD_FOLDER = 'files/uploads/'
 METADATA_FOLDER = 'files/metadata/'
+
+class CustomTableWidget(QTableWidget):
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        item = self.itemAt(event.pos())
+        if item:
+            self.editItem(item)
+            editor = self.indexWidget(self.currentIndex())
+            if isinstance(editor, QLineEdit):
+                editor.setCursorPosition(len(editor.text()))
+                editor.textChanged.connect(lambda: self.update_cell_display(editor))
+
+    def update_cell_display(self, editor):
+        """Update the cell display with the current text in the editor."""
+        current_index = self.currentIndex()
+        self.model().setData(current_index, editor.text())
 
 
 class MetadataPage(QWidget):
@@ -175,7 +191,7 @@ class MetadataPage(QWidget):
         layout.addWidget(self.meta_title)
 
         # Create the table widget to display the metadata
-        self.table_widget = QTableWidget()
+        self.table_widget = CustomTableWidget()
         layout.addWidget(self.table_widget)
 
         # Create a horizontal layout for the buttons
@@ -286,12 +302,15 @@ class MetadataPage(QWidget):
         header_font = QFont()
         header_font.setPointSize(16)
 
+        # Create a dictionary for header tooltips
+        header_tooltip_dict = {column_name: header_tooltips.get(column_name, '') for column_name in metadata_df.columns}
+
         # Set tooltips for headers
         for i, column_name in enumerate(metadata_df.columns):
             header_item = self.table_widget.horizontalHeaderItem(i)
             header_item.setFont(header_font)
-            if column_name in header_tooltips:  # Use header_tooltips from the JSON file
-                header_item.setToolTip(header_tooltips[column_name])
+            header_item.setToolTip(header_tooltip_dict[column_name])
+
 
         row_height = 40
         for row in range(self.table_widget.rowCount()):
@@ -299,6 +318,13 @@ class MetadataPage(QWidget):
 
         type_column = metadata_df.columns.get_loc("type")
         self.table_widget.setColumnWidth(type_column, 130)
+
+        # Create a dictionary for combo box item tooltips
+        combobox_tooltip_dict = {
+            "nominal": combobox_item_tooltips.get("nominal", ''),
+            "ordinal": combobox_item_tooltips.get("ordinal", ''),
+            "continuous": combobox_item_tooltips.get("continuous", '')
+        }
 
         # Fill the table with data from the DataFrame and set tooltips for the cells
         for i, row in metadata_df.iterrows():
@@ -312,9 +338,9 @@ class MetadataPage(QWidget):
                     combo.setCurrentText(str(value))
 
                     # Set tooltips for the combo box items
-                    combo.setItemData(0, combobox_item_tooltips["nominal"], Qt.ToolTipRole)
-                    combo.setItemData(1, combobox_item_tooltips["ordinal"], Qt.ToolTipRole)
-                    combo.setItemData(2, combobox_item_tooltips["continuous"], Qt.ToolTipRole)
+                    for index in range(combo.count()):
+                        item_text = combo.itemText(index)
+                        combo.setItemData(index, combobox_tooltip_dict[item_text], Qt.ToolTipRole)
 
                     self.table_widget.setCellWidget(i, j, combo)
                 else:
@@ -331,7 +357,7 @@ class MetadataPage(QWidget):
         if hasattr(self, 'selected_metadata_path'):
             metadata_file_path = self.selected_metadata_path
         elif hasattr(self, 'selected_file_path'):
-            metadata_file_path = os.path.join('files/metadata', f"metadata_{os.path.basename(self.selected_file_path)}")
+            metadata_file_path = os.path.join(METADATA_FOLDER, f"metadata_{os.path.basename(self.selected_file_path)}")
         else:
             QMessageBox.warning(self, "Error", "No file selected to save.")
             return

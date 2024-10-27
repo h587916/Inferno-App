@@ -73,3 +73,8 @@ QToolTip {
 QGroupBox {
     font-size: 20px;
 }
+
+/* ComboBox Style */
+QComboBox {
+    background-color: white;
+}

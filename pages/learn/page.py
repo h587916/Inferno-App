@@ -193,7 +193,7 @@ class LearnPage(QWidget):
         self.run_button.setEnabled(csv_selected and metadata_selected)
 
     def load_configuration(self):
-        """Load configuration from config.json or create it with default values."""
+        """Load configuration from JSON"""
         with open('pages/learn/config.json', 'r') as f:
             config = json.load(f)
             self.nsamples = config.get('nsamples', 3600)
@@ -203,6 +203,7 @@ class LearnPage(QWidget):
                 self.maxhours = float('inf')
             else:
                 self.maxhours = float(maxhours)
+            self.seed = config.get('seed', 16)
             self.parallel = config.get('parallel', 4)
 
     def configure_run_learn(self):
@@ -222,11 +223,13 @@ class LearnPage(QWidget):
         else:
             maxhours_str = str(self.maxhours)
         self.maxhours_input = QLineEdit(maxhours_str)
+        self.seed_input = QLineEdit(str(self.seed))
         self.parallel_input = QLineEdit(str(self.parallel))
 
         layout.addRow("nsamples:", self.nsamples_input)
         layout.addRow("nchains:", self.nchains_input)
         layout.addRow("maxhours:", self.maxhours_input)
+        layout.addRow("seed:", self.seed_input)
         layout.addRow("parallel:", self.parallel_input)
 
         save_button = QPushButton("Save")
@@ -245,12 +248,14 @@ class LearnPage(QWidget):
             self.maxhours = float('inf')
         else:
             self.maxhours = float(maxhours_text)
+        self.seed = int(self.seed_input.text())
         self.parallel = int(self.parallel_input.text())
         # Save the new configuration to config.json
         config = {
             'nsamples': self.nsamples,
             'nchains': self.nchains,
             'maxhours': 'inf' if self.maxhours == float('inf') else self.maxhours,
+            'seed': self.seed,
             'parallel': self.parallel
         }
         with open('pages/learn/config.json', 'w') as f:

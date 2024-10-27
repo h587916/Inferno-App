@@ -1,0 +1,1 @@
+{"plot_colors": {"probability_curve": "red", "uncertainty_area": "skyblue", "zero_change_line": "green"}, "line_widths": {"probability_curve": 2, "zero_change_line": 2, "uncertainty_area": 2}, "alpha_values": {"uncertainty_area": 1.0}, "x_label": "X Axis", "y_label": "Probability"}
