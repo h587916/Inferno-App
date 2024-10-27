@@ -2,7 +2,7 @@ import os
 import json
 import shutil
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QComboBox, QListWidget, QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QComboBox, QListWidget, QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem
 from r_integration.inferno_functions import run_learn
 
 
@@ -29,9 +29,11 @@ class LearnPage(QWidget):
         # --- Group box for left side ---
         self.left_group = QGroupBox()
         self.left_group.setAlignment(Qt.AlignHCenter)
+        self.left_group.setFixedHeight(200)
+        self.left_group.setMaximumWidth(500)
 
         left_layout = QVBoxLayout()
-        left_layout.setContentsMargins(40, 20, 40, 400)  # left, top, right, bottom
+        left_layout.setContentsMargins(60, 50, 20, 0)  # left, top, right, bottom
         self.left_group.setLayout(left_layout)
         fixed_label_width = 120
 
@@ -44,6 +46,8 @@ class LearnPage(QWidget):
         file_layout.addWidget(self.csv_combobox)
         left_layout.addLayout(file_layout)
 
+        left_layout.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Fixed))
+
         meta_layout = QHBoxLayout()
         metadata_label = QLabel("Select a Metadata File:")
         self.metadata_combobox = QComboBox()
@@ -53,13 +57,19 @@ class LearnPage(QWidget):
         meta_layout.addWidget(self.metadata_combobox)
         left_layout.addLayout(meta_layout)
 
+        left_layout.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Fixed))
+
         button_layout = QHBoxLayout()
+        button_layout.setAlignment(Qt.AlignHCenter)
         button_layout.setContentsMargins(40, 0, 40, 0)  # left, top, right, bottom
 
         self.run_button = QPushButton("Run Simulation")
         self.run_button.clicked.connect(self.run_learn_function)
         self.run_button.setFixedWidth(150)
         button_layout.addWidget(self.run_button)
+
+        spacer = QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Minimum)
+        button_layout.addItem(spacer)
 
         self.configure_button = QPushButton("Configure")
         self.configure_button.setFixedWidth(150)
@@ -101,7 +111,7 @@ class LearnPage(QWidget):
 
         # Add group boxes to the main layout
         group_layout = QHBoxLayout()
-        group_layout.addWidget(self.left_group)
+        group_layout.addWidget(self.left_group, alignment=Qt.AlignTop)
         group_layout.addWidget(self.right_group)
         layout.addLayout(group_layout)
 
@@ -211,7 +221,8 @@ class LearnPage(QWidget):
         self.load_configuration()
 
         dialog = QDialog(self)
-        dialog.setMinimumWidth(300)
+        dialog.setFixedWidth(270)
+        dialog.setFixedHeight(170)
         dialog.setWindowTitle("Configure Learn Function Parameters")
 
         layout = QFormLayout()
@@ -232,10 +243,21 @@ class LearnPage(QWidget):
         layout.addRow("seed:", self.seed_input)
         layout.addRow("parallel:", self.parallel_input)
 
+        doc_link = QLabel("<a href='https://pglpm.github.io/inferno/reference/learn.html'>Parameter Documentation</a>")
+        doc_link.setOpenExternalLinks(True)
+
         save_button = QPushButton("Save")
+        save_button.setFixedWidth(50)
+        save_button.setFixedHeight(30)
+        save_button.setStyleSheet("font-size: 10px;")
         save_button.clicked.connect(lambda: self.save_configuration(dialog))
 
-        layout.addWidget(save_button)
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(doc_link)
+        button_layout.addStretch()  # Add a stretchable space before the button
+        button_layout.addWidget(save_button)
+
+        layout.addRow(button_layout)
         dialog.setLayout(layout)
         dialog.exec_()
 
