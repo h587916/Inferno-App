@@ -2,7 +2,8 @@ import os
 import json
 import shutil
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QComboBox, QListWidget, QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QComboBox, QListWidget, 
+                                QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem, QFileDialog, QHBoxLayout, QLabel, QGridLayout)
 from r_integration.inferno_functions import run_learn
 
 
@@ -14,7 +15,8 @@ class LearnPage(QWidget):
     def __init__(self, file_manager):
         super().__init__()
         self.file_manager = file_manager
-        layout = QVBoxLayout()
+        layout = QGridLayout()
+        button_width = 100
 
         # Title label
         title_label = QLabel("Monte Carlo Simulation")
@@ -23,111 +25,123 @@ class LearnPage(QWidget):
         font.setBold(True)
         title_label.setFont(font)
         title_label.setAlignment(Qt.AlignHCenter)
-        title_label.setContentsMargins(0, 10, 0, 20)  # left, top, right, bottom
-        layout.addWidget(title_label)
+        title_label.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
+        layout.addWidget(title_label, 0, 0, 1, 2)
 
-        # --- Group box for left side ---
-        self.left_group = QGroupBox()
-        self.left_group.setAlignment(Qt.AlignHCenter)
-        self.left_group.setFixedHeight(200)
-        self.left_group.setMaximumWidth(500)
+        vertical_spacer = QSpacerItem(0, 30, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        layout.addItem(vertical_spacer, 1, 0, 1, 2)
 
-        left_layout = QVBoxLayout()
-        left_layout.setContentsMargins(60, 50, 20, 0)  # left, top, right, bottom
-        self.left_group.setLayout(left_layout)
+        # --- Group box for left side (run simulation) ---
+        self.simulation_group = QGroupBox("Simulation")
+        self.simulation_group.setAlignment(Qt.AlignHCenter)
+
+        simulation_layout = QVBoxLayout()
+        simulation_layout.setContentsMargins(50, 50, 50, 0)  # left, top, right, bottom
+        simulation_layout.setAlignment(Qt.AlignHCenter)
+        self.simulation_group.setLayout(simulation_layout)
+        
         fixed_label_width = 120
-
         file_layout = QHBoxLayout()
         csv_label = QLabel("Select a CSV File:")
+        csv_label.setFixedWidth(fixed_label_width)
         self.csv_combobox = QComboBox()
         self.csv_combobox.currentIndexChanged.connect(self.check_selection)
-        csv_label.setFixedWidth(fixed_label_width)
         file_layout.addWidget(csv_label)
         file_layout.addWidget(self.csv_combobox)
-        left_layout.addLayout(file_layout)
-
-        left_layout.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Fixed))
+        simulation_layout.addLayout(file_layout)
 
         meta_layout = QHBoxLayout()
         metadata_label = QLabel("Select a Metadata File:")
+        metadata_label.setFixedWidth(fixed_label_width)
         self.metadata_combobox = QComboBox()
         self.metadata_combobox.currentIndexChanged.connect(self.check_selection)
-        metadata_label.setFixedWidth(fixed_label_width)
         meta_layout.addWidget(metadata_label)
         meta_layout.addWidget(self.metadata_combobox)
-        left_layout.addLayout(meta_layout)
+        simulation_layout.addLayout(meta_layout)
 
-        left_layout.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Fixed))
+        vertical_spacer = QSpacerItem(0, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        simulation_layout.addItem(vertical_spacer)
+
+        self.run_button = QPushButton("Simulate")
+        self.run_button.clicked.connect(self.run_learn_function)
+        self.run_button.setFixedWidth(button_width)
+
+        self.configure_button = QPushButton("Configure")
+        self.configure_button.setFixedWidth(button_width)
+        self.configure_button.clicked.connect(self.configure_run_learn)
 
         button_layout = QHBoxLayout()
         button_layout.setAlignment(Qt.AlignHCenter)
-        button_layout.setContentsMargins(40, 0, 40, 0)  # left, top, right, bottom
+        button_layout.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
 
-        self.run_button = QPushButton("Run Simulation")
-        self.run_button.clicked.connect(self.run_learn_function)
-        self.run_button.setFixedWidth(150)
+        horizontal_spacer = QSpacerItem(20, 0, QSizePolicy.Minimum, QSizePolicy.Minimum)
         button_layout.addWidget(self.run_button)
-
-        spacer = QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Minimum)
-        button_layout.addItem(spacer)
-
-        self.configure_button = QPushButton("Configure")
-        self.configure_button.setFixedWidth(150)
-        self.configure_button.clicked.connect(self.configure_run_learn)
+        button_layout.addItem(horizontal_spacer)
         button_layout.addWidget(self.configure_button)
 
-        left_layout.addLayout(button_layout)
+        simulation_layout.addLayout(button_layout)
+        simulation_layout.addStretch()
 
-        # --- Group box for right side ---
-        self.right_group = QGroupBox("Results Folders")
-        self.right_group.setAlignment(Qt.AlignHCenter)
+        # --- Group box for right side (results folder list) ---
+        self.results_list_group = QGroupBox("Results Folders")
+        self.results_list_group.setAlignment(Qt.AlignHCenter)
 
-        right_layout = QVBoxLayout()
-        right_layout.setContentsMargins(0, 20, 0, 180)  # left, top, right, bottom
-        self.right_group.setLayout(right_layout)
+        results_list_layout = QVBoxLayout()
+        results_list_layout.setContentsMargins(50, 50, 50, 50)  # left, top, right, bottom
+        results_list_layout.setAlignment(Qt.AlignHCenter)
+        self.results_list_group.setLayout(results_list_layout)
 
-        list_layout = QHBoxLayout()
+        list_layout = QVBoxLayout()
         self.results_list = QListWidget()
-        self.results_list.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        self.results_list.setMaximumWidth(400)
-        self.results_list.setMaximumHeight(300)
+        self.results_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         list_layout.addWidget(self.results_list)
-        right_layout.addLayout(list_layout)
 
-        button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(70, 0, 70, 0)  # left, top, right, bottom
+        results_list_layout.addLayout(list_layout)
+        results_list_layout.addItem(vertical_spacer)
+
 
         self.rename_button = QPushButton("Rename")
         self.rename_button.clicked.connect(self.rename_result)
-        self.rename_button.setFixedWidth(150)
-        button_layout.addWidget(self.rename_button)
+        self.rename_button.setFixedWidth(button_width)
 
         self.delete_button = QPushButton("Delete")
         self.delete_button.clicked.connect(self.delete_result)
-        self.delete_button.setFixedWidth(150)
+        self.delete_button.setFixedWidth(button_width)
+
+        self.upload_button = QPushButton("Upload")
+        self.upload_button.clicked.connect(self.upload_result)
+        self.upload_button.setFixedWidth(button_width)
+
+        self.download_button = QPushButton("Download")
+        self.download_button.clicked.connect(self.download_result)
+        self.download_button.setFixedWidth(button_width)
+
+        button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(0, 0, 0, 10)  # left, top, right, bottom
+        button_layout.setAlignment(Qt.AlignHCenter)
+
+        button_layout.addWidget(self.rename_button)
+        button_layout.addItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
         button_layout.addWidget(self.delete_button)
+        button_layout.addItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
+        button_layout.addWidget(self.upload_button)
+        button_layout.addItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
+        button_layout.addWidget(self.download_button)
 
-        right_layout.addLayout(button_layout)
+        results_list_layout.addLayout(button_layout)
 
-        # Add group boxes to the main layout
-        group_layout = QHBoxLayout()
-        group_layout.addWidget(self.left_group, alignment=Qt.AlignTop)
-        group_layout.addWidget(self.right_group)
-        layout.addLayout(group_layout)
+        # General Setup
+        layout.addWidget(self.simulation_group, 2, 0)
+        layout.addWidget(self.results_list_group, 2, 1)
 
-        # Set the layout for the page
         self.setLayout(layout)
 
-        # Load and apply styles from the QSS file
         with open('pages/learn/styles.qss', 'r') as f:
             style = f.read()
             self.setStyleSheet(style)
 
-        # Connect to file manager signals
         self.file_manager.files_updated.connect(self.load_files)
         self.file_manager.learnt_folders_updated.connect(self.load_result_folders)
-
-        # Load files
         self.file_manager.refresh()
 
 
@@ -193,6 +207,36 @@ class LearnPage(QWidget):
                 shutil.rmtree(folder_path)
                 self.file_manager.refresh()
                 QMessageBox.information(self, "Success", f"Folder '{folder_name}' deleted.")
+        else:
+            QMessageBox.warning(self, "Error", "No folder selected.")
+
+    def upload_result(self):
+        """Upload a learnt folder."""
+        folder_path = QFileDialog.getExistingDirectory(self, "Select a learnt folder to upload")
+        if folder_path:
+            folder_name = os.path.basename(folder_path)
+            new_path = os.path.join(LEARNT_FOLDER, folder_name)
+            if not os.path.exists(new_path):
+                shutil.copytree(folder_path, new_path)
+                self.file_manager.refresh()
+                QMessageBox.information(self, "Success", f"Folder '{folder_name}' uploaded.")
+            else:
+                QMessageBox.warning(self, "Error", "A folder with that name already exists.")
+
+    def download_result(self):
+        """Download the selected result folder."""
+        selected_item = self.results_list.currentItem()
+        if selected_item:
+            folder_name = selected_item.text()
+            folder_path = os.path.join(LEARNT_FOLDER, folder_name)
+            download_path = QFileDialog.getExistingDirectory(self, "Select the downloaded destination")
+            if download_path:
+                new_path = os.path.join(download_path, folder_name)
+                if not os.path.exists(new_path):
+                    shutil.copytree(folder_path, new_path)
+                    QMessageBox.information(self, "Success", f"Folder '{folder_name}' downloaded.")
+                else:
+                    QMessageBox.warning(self, "Error", "A folder with that name already exists in the download location.")
         else:
             QMessageBox.warning(self, "Error", "No folder selected.")
 
