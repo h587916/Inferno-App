@@ -51,7 +51,7 @@ def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=
         pandas2ri.deactivate()
 
 
-def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 3600, nchains: int = 60, maxhours: float = float('inf'), parallel: int = 4):
+def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 3600, nchains: int = 60, maxhours: float = float('inf'), parallel: int = 12, seed: int = 16):
     try:
        # Convert file paths to R string vectors
         metadatafile_r = StrVector([metadatafile])
@@ -66,7 +66,7 @@ def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 
             nchains=nchains,
             maxhours=maxhours,
             parallel=parallel,
-            seed=16,
+            seed=seed,
             appendtimestamp=False,  
             appendinfo=False,  
             plottraces=False 

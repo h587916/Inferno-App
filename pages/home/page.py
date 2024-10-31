@@ -4,39 +4,41 @@ from PySide6.QtCore import Qt
 class HomePage(QWidget):
     def __init__(self):
         super().__init__()
+        layout = QVBoxLayout()
 
-        # Create a main layout for centering
-        main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(0, 20, 0, 0)  # Move content up by adjusting the top margin
+        # Title label
+        title_label = QLabel("Welcome to the Inferno App")
+        title_label.setAlignment(Qt.AlignHCenter)
+        font = title_label.font()
+        font.setPointSize(24)
+        font.setBold(True)
+        title_label.setFont(font)
+        layout.addWidget(title_label)
+        
+        # Add a horizontal layout to hold the content
+        content_layout = QHBoxLayout()
 
-        # Create a layout for the actual content
-        content_layout = QVBoxLayout()
-        content_layout.setSpacing(20)  # Reduce space between elements
-        content_layout.setAlignment(Qt.AlignTop)
-
-        # Add a welcome label
-        welcome_label = QLabel("<h1>Welcome to the Inferno App</h1>")
-        welcome_label.setAlignment(Qt.AlignCenter)
-        content_layout.addWidget(welcome_label)
-
-        # Add clickable links to the GitHub repo and documentation
+        # About Inferno
+        about_layout = QVBoxLayout()
         links_label = QLabel(
             'You can find more information about Inferno here:<br>'
             '<a href="https://github.com/pglpm/inferno">GitHub Repository</a><br>'
             '<a href="https://pglpm.github.io/inferno/index.html">Inferno Documentation</a>'
         )
-        links_label.setOpenExternalLinks(True)  # Allow the links to be clicked and opened in a browser
-        content_layout.addWidget(links_label)
+        links_label.setOpenExternalLinks(True)
+        about_layout.addWidget(links_label)
 
-        # Set a fixed size for the content layout
-        content_container = QWidget()
-        content_container.setLayout(content_layout)
-        content_container.setFixedWidth(600)  # Set the width of the content (adjust as needed)
+        # Inferno Features
+        features_layout = QVBoxLayout()
+        features_label = QLabel(
+            'Inferno is a Python package that provides a suite of tools for the analysis of single-cell RNA-seq data.<br>'
+            'It is designed to be user-friendly, efficient, and scalable to large datasets.'
+        )
+        features_layout.addWidget(features_label)
 
-        # Add the content container to the main layout and center it
-        main_layout.addStretch()
-        main_layout.addWidget(content_container)
-        main_layout.addStretch()
+        # Add the layouts to the content layout
+        content_layout.addLayout(about_layout)
+        content_layout.addLayout(features_layout)
+        layout.addLayout(content_layout)
 
-        # Set the main layout for the page
-        self.setLayout(main_layout)
+        self.setLayout(layout)

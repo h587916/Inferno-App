@@ -8,7 +8,7 @@ from pages.home.page import HomePage
 from pages.metadata.page import MetadataPage
 from pages.learn.page import LearnPage
 from pages.plotting.page import PlottingPage
-from pages.settings.page import SettingsPage
+from pages.mutualinfo.page import MutualInfoPage
 from pages.literature.page import LiteraturePage
 from file_manager.file_manager import FileManager
 
@@ -60,8 +60,8 @@ class MainWindow(QMainWindow):
             "Metadata": (MetadataPage(self.file_manager), QPushButton(" Metadata")),
             "Learn": (LearnPage(self.file_manager), QPushButton(" Learn")),
             "Plotting": (PlottingPage(self.file_manager), QPushButton(" Plotting")),
-            "Literature": (LiteraturePage(), QPushButton(" Literature")),
-            "Settings": (SettingsPage(), QPushButton(" Settings"))
+            "Mutualinfo": (MutualInfoPage(self.file_manager), QPushButton(" Mutualinfo")),
+            "Literature": (LiteraturePage(), QPushButton(" Literature"))
         }
 
         # Create the stacked widget to hold all the pages

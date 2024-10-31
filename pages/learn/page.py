@@ -258,7 +258,7 @@ class LearnPage(QWidget):
             else:
                 self.maxhours = float(maxhours)
             self.seed = config.get('seed', 16)
-            self.parallel = config.get('parallel', 4)
+            self.parallel = config.get('parallel', 12)
 
     def configure_run_learn(self):
         """Open a dialog to configure run_learn parameters."""
@@ -360,7 +360,7 @@ class LearnPage(QWidget):
         metadata_file_path = os.path.join(METADATA_FOLDER, metadata_file)
 
         # Run the learn() function with the selected files
-        result = run_learn(metadatafile=metadata_file_path, datafile=csv_file_path, outputdir=outputdir, parallel=12)
+        result = run_learn(metadatafile=metadata_file_path, datafile=csv_file_path, outputdir=outputdir, parallel=self.parallel, nsamples=self.nsamples, nchains=self.nchains, maxhours=self.maxhours, seed=self.seed)
 
         # Close the running message box after completion
         running_message.done(0)
