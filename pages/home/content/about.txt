@@ -1,0 +1,5 @@
+Inferno is a R package for Bayesian nonparametric density inference.<br>
+For a practical example of Inferno in action, see the <a href="https://example.com/parkinsons-disease-vignette">Parkinson's Disease vignette</a>,<br>
+which demonstrates how to apply Inferno's methods to real-world data. Further<br>
+information and complete function documentation can be found in the <br>
+<a href="https://github.com/inferno-repo">Inferno GitHub repository</a> and the <a href="https://inferno-docs.com"> documentation page</a>.<br>
