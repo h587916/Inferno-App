@@ -1,4 +1,4 @@
-import sys
+import importlib.resources
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QListWidget, QPushButton, QTextEdit, QAbstractItemView, QStackedWidget
 from PySide6.QtCore import Qt
 from pages.mutualinfo.mutualinfo import run_mutual_information, load_mutual_variables
@@ -18,8 +18,8 @@ class MutualInfoPage(QWidget):
         # Set layout
         self.setLayout(main_layout)
 
-        # Load and apply styles from the QSS file
-        with open('pages/mutualinfo/styles.qss', 'r') as f:
+        # Apply the stylesheet
+        with importlib.resources.open_text('pages.mutualinfo', 'styles.qss') as f:
             style = f.read()
             self.setStyleSheet(style)
 

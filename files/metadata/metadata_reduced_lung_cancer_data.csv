@@ -1,9 +1,0 @@
-name,type,domainmin,domainmax,datastep,minincluded,maxincluded,V1,V2,V3,V4,V5,V6,V7,V8,V9,V10,V11
-AGE,ordinal,51,75,1,,,,,,,,,,,,,
-SMOKING,nominal,,,,,,1,2,,,,,,,,,
-CHRONIC DISEASE,nominal,,,,,,1,2,,,,,,,,,
-WHEEZING,nominal,,,,,,1,2,,,,,,,,,
-SHORTNESS OF BREATH,nominal,,,,,,1,2,,,,,,,,,
-COUGHING,nominal,,,,,,1,2,,,,,,,,,
-CHEST PAIN,nominal,,,,,,1,2,,,,,,,,,
-LUNG CANCER,nominal,,,,,,NO,YES,,,,,,,,,

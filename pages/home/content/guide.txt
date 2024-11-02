@@ -1,5 +1,0 @@
-Welcome to the Inferno App! This is a step by step guide on how to get started:
-1. Metadata
-2. Learn
-3. Use results
-4. bla bla bla

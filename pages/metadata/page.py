@@ -1,4 +1,5 @@
 import os
+import sys
 import pandas as pd
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
                                QComboBox, QGridLayout, QListWidget, QGroupBox, QStackedWidget, QMessageBox, QFileDialog,
@@ -7,16 +8,22 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from r_integration.inferno_functions import build_metadata
 import json
+import importlib.resources
+
 
 # Load tooltips for the headers and combo boxes
-with open('pages/metadata/tooltips.json', 'r') as f:
+with importlib.resources.open_text('pages.metadata', 'tooltips.json') as f:
     tooltips = json.load(f)
 
 header_tooltips = tooltips['header_tooltips']
 combobox_item_tooltips = tooltips['combobox_item_tooltips']
 
-UPLOAD_FOLDER = 'files/uploads/'
-METADATA_FOLDER = 'files/metadata/'
+# Define the base directory paths (consistent with file_manager.py)
+HOME_DIR = os.path.expanduser('~')
+APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
+
+UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
+METADATA_FOLDER = os.path.join(APP_DIR, 'metadata')
 
 class CustomTableWidget(QTableWidget):
     def mousePressEvent(self, event):
@@ -60,7 +67,7 @@ class MetadataPage(QWidget):
         self.setLayout(layout)
 
         # Apply the stylesheet
-        with open('pages/metadata/styles.qss', 'r') as f:
+        with importlib.resources.open_text('pages.metadata', 'styles.qss') as f:
             style = f.read()
             self.setStyleSheet(style)
 

@@ -2,6 +2,7 @@ import os
 import json
 import numpy as np
 import pandas as pd
+import importlib.resources
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, 
                                 QComboBox, QListWidget, QFileDialog, QAbstractItemView, QFormLayout, QLineEdit, 
                                 QFrame, QMessageBox, QSizePolicy, QAbstractItemView, QSpacerItem, QDialog)
@@ -11,8 +12,13 @@ from matplotlib.figure import Figure
 from r_integration.inferno_functions import run_Pr
 from scipy.interpolate import make_interp_spline
 
-UPLOAD_FOLDER = 'files/uploads/'
-LEARNT_FOLDER = 'files/learnt/'
+# Define the base directory paths (consistent with file_manager.py)
+HOME_DIR = os.path.expanduser('~')
+APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
+
+UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
+LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
+USER_CONFIG_PATH = os.path.join(APP_DIR, 'config/plotting_config.json')
 
 class CustomComboBox(QComboBox):
     def wheelEvent(self, event):
@@ -168,8 +174,8 @@ class PlottingPage(QWidget):
         # Set layout
         self.setLayout(main_layout)
 
-        # Load and apply styles from the QSS file
-        with open('pages/plotting/styles.qss', 'r') as f:
+        # Apply the stylesheet
+        with importlib.resources.open_text('pages.plotting', 'styles.qss') as f:
             style = f.read()
             self.setStyleSheet(style)
 
@@ -577,17 +583,29 @@ class PlottingPage(QWidget):
 
     def load_configuration(self):
         """Load configuration from JSON file"""
-        with open('pages/plotting/config.json', 'r') as f:
-            config = json.load(f)
-            self.color_probability_curve = config.get('plot_colors').get('probability_curve')
-            self.color_uncertainty_area = config.get('plot_colors').get('uncertainty_area')
-            self.color_zero_change_line = config.get('plot_colors').get('zero_change_line')
-            self.width_probability_curve = config.get('line_widths').get('probability_curve')
-            self.width_zero_change_line = config.get('line_widths').get('zero_change_line')
-            self.width_uncertainty_area = config.get('line_widths').get('uncertainty_area')
-            self.alpha_uncertainty_area = config.get('alpha_values').get('uncertainty_area')
-            self.xlabel = config.get('x_label')
-            self.ylabel = config.get('y_label')
+        if os.path.exists(USER_CONFIG_PATH):
+            with open(USER_CONFIG_PATH, 'r') as f:
+                config = json.load(f)
+                self.color_probability_curve = config.get('plot_colors').get('probability_curve')
+                self.color_uncertainty_area = config.get('plot_colors').get('uncertainty_area')
+                self.color_zero_change_line = config.get('plot_colors').get('zero_change_line')
+                self.width_probability_curve = config.get('line_widths').get('probability_curve')
+                self.width_zero_change_line = config.get('line_widths').get('zero_change_line')
+                self.width_uncertainty_area = config.get('line_widths').get('uncertainty_area')
+                self.alpha_uncertainty_area = config.get('alpha_values').get('uncertainty_area')
+                self.xlabel = config.get('x_label')
+                self.ylabel = config.get('y_label')
+        else:
+            # Default values
+            self.color_probability_curve = 'blue'
+            self.color_uncertainty_area = 'lightblue'
+            self.color_zero_change_line = 'red'
+            self.width_probability_curve = 2
+            self.width_zero_change_line = 2
+            self.width_uncertainty_area = 2
+            self.alpha_uncertainty_area = 0.3
+            self.xlabel = 'X-axis Label'
+            self.ylabel = 'Y-axis Label'
 
     def configure_plot(self):
         """Open a dialog to configure plot settings."""
@@ -630,9 +648,6 @@ class PlottingPage(QWidget):
             self.plot_probabilities()
 
     def save_configuration(self, dialog):
-        # Save configurations to a JSON file (config.json)
-        
-        # TODO: get the values from the QLineEdits and save them to a JSON file
         self.color_probability_curve = self.color_probability_curve_edit.text()
         self.color_uncertainty_area = self.color_uncertainty_area_edit.text()
         self.color_zero_change_line = self.color_zero_change_line_edit.text()
@@ -660,7 +675,7 @@ class PlottingPage(QWidget):
             "x_label": self.xlabel,
             "y_label": self.ylabel
         }
-        with open('pages/plotting/config.json', 'w') as f:
+        with open(USER_CONFIG_PATH, 'w') as f:
             json.dump(config, f)
         dialog.accept()
 

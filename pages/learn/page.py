@@ -1,15 +1,21 @@
 import os
 import json
 import shutil
+import importlib.resources
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QComboBox, QListWidget, 
                                 QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem, QFileDialog, QHBoxLayout, QLabel, QGridLayout)
 from r_integration.inferno_functions import run_learn
 
 
-UPLOAD_FOLDER = 'files/uploads/'
-METADATA_FOLDER = 'files/metadata/'
-LEARNT_FOLDER = 'files/learnt/'
+# Define the base directory paths (consistent with file_manager.py)
+HOME_DIR = os.path.expanduser('~')
+APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
+
+UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
+METADATA_FOLDER = os.path.join(APP_DIR, 'metadata')
+LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
+USER_CONFIG_PATH = os.path.join(APP_DIR, 'config/learn_config.json')
 
 class LearnPage(QWidget):
     def __init__(self, file_manager):
@@ -136,7 +142,8 @@ class LearnPage(QWidget):
 
         self.setLayout(layout)
 
-        with open('pages/learn/styles.qss', 'r') as f:
+        # Apply the stylesheet
+        with importlib.resources.open_text('pages.learn', 'styles.qss') as f:
             style = f.read()
             self.setStyleSheet(style)
 
@@ -248,17 +255,28 @@ class LearnPage(QWidget):
 
     def load_configuration(self):
         """Load configuration from JSON"""
-        with open('pages/learn/config.json', 'r') as f:
-            config = json.load(f)
-            self.nsamples = config.get('nsamples', 3600)
-            self.nchains = config.get('nchains', 60)
-            maxhours = config.get('maxhours', 'inf')
-            if maxhours == 'inf':
-                self.maxhours = float('inf')
-            else:
-                self.maxhours = float(maxhours)
-            self.seed = config.get('seed', 16)
-            self.parallel = config.get('parallel', 12)
+        if os.path.exists(USER_CONFIG_PATH):
+            # Load user configuration
+            with open(USER_CONFIG_PATH, 'r') as f:
+                config = json.load(f)
+        else:
+            # Use default values defined in code
+            config = {
+                'nsamples': 3600,
+                'nchains': 60,
+                'maxhours': 'inf',
+                'seed': 16,
+                'parallel': 12
+            }
+        self.nsamples = config.get('nsamples', 3600)
+        self.nchains = config.get('nchains', 60)
+        maxhours = config.get('maxhours', 'inf')
+        if maxhours == 'inf':
+            self.maxhours = float('inf')
+        else:
+            self.maxhours = float(maxhours)
+        self.seed = config.get('seed', 16)
+        self.parallel = config.get('parallel', 12)
 
     def configure_run_learn(self):
         """Open a dialog to configure run_learn parameters."""
@@ -324,7 +342,7 @@ class LearnPage(QWidget):
             'seed': self.seed,
             'parallel': self.parallel
         }
-        with open('pages/learn/config.json', 'w') as f:
+        with open(USER_CONFIG_PATH, 'w') as f:
             json.dump(config, f)
         dialog.accept()
 

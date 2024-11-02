@@ -3,8 +3,12 @@ import pandas as pd
 from r_integration.inferno_functions import run_mutualinfo
 from PySide6.QtWidgets import QMessageBox
 
-LEARNT_FOLDER = 'files/learnt/'
-UPLOAD_FOLDER = 'files/uploads/'
+# Define the base directory paths (consistent with file_manager.py)
+HOME_DIR = os.path.expanduser('~')
+APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
+
+UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
+LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
 
 
 def load_mutual_variables(dataset_combobox, predictand_combobox, predictor_listwidget, additional_predictor_listwidget):

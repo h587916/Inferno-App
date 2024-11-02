@@ -1,7 +1,8 @@
+import sys
+import os
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QStackedWidget, QHBoxLayout, QLabel
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon, QPixmap
-import sys
 
 # Import the individual pages from their respective files
 from pages.home.page import HomePage
@@ -17,12 +18,21 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        # Determine the base path
+        if getattr(sys, 'frozen', False):
+            # If the application is frozen (packaged)
+            base_path = sys._MEIPASS
+        else:
+            # If running in development
+            base_path = os.path.abspath(".")
+
         ### CENTRALIZED FILE MANAGEMENT ###
         self.file_manager = FileManager()
 
         ### INITIAL SETUP WITH WINDOW ###
         self.setWindowTitle("Inferno App")
-        self.setWindowIcon(QIcon("icons/inferno_symbol.png"))
+        ico_icon_path = os.path.join(base_path, 'icons', 'inferno_symbol.png')
+        self.setWindowIcon(QIcon(ico_icon_path))
         self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
         self.resize(1200, 700)
 
@@ -40,7 +50,7 @@ class MainWindow(QMainWindow):
         sidebar_header_layout.setContentsMargins(0, 10, 0, 0)
 
         inferno_icon = QLabel()
-        pixmap = QPixmap('icons/inferno_symbol.png')
+        pixmap = QPixmap(ico_icon_path)
         inferno_icon.setPixmap(pixmap)
         inferno_icon.setFixedSize(52, 52) 
         inferno_icon.setScaledContents(True) 
@@ -75,7 +85,8 @@ class MainWindow(QMainWindow):
             self.stacked_widget.addWidget(page_widget)
 
             # Set the icon for the button (assuming the icon filenames match the page names)
-            button.setIcon(QIcon(f'icons/{page_name.lower()}.svg'))
+            icon_path = os.path.join(base_path, 'icons', f'{page_name.lower()}.svg')
+            button.setIcon(QIcon(icon_path))
             button.setIconSize(icon_size)
 
             # Connect button to switch to the corresponding page and update the active button style
@@ -83,7 +94,6 @@ class MainWindow(QMainWindow):
 
             # Add each button to the sidebarsssssssssss
             self.sidebar_layout.addWidget(button)
-
 
         self.sidebar_layout.addStretch()  # Push the items to the top
 

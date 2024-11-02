@@ -11,11 +11,17 @@ from rpy2.robjects import r
 inferno = importr('inferno')
 grdevices = importr('grDevices')
 
-logging.basicConfig(
-    level=logging.ERROR,
-    filename='logs/inferno.log',
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# Check if logging should be enabled
+enable_logging = os.getenv('ENABLE_LOGGING', 'False').lower() in ('true', '1', 't')
+
+if enable_logging:
+    log_dir = 'logs'
+    log_file = os.path.join(log_dir, 'inferno.log')
+
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    logging.basicConfig(filename=log_file, level=logging.DEBUG)
 
 
 def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=None):

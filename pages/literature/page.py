@@ -1,4 +1,5 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QScrollArea, QFormLayout, QFrame, QHBoxLayout, QTextBrowser
+import importlib.resources
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QTextBrowser
 from PySide6.QtCore import Qt
 
 
@@ -71,7 +72,7 @@ class LiteraturePage(QWidget):
         self.setLayout(layout)
 
         # Apply the stylesheet
-        with open('pages/literature/styles.qss', 'r') as f:
+        with importlib.resources.open_text('pages.literature', 'styles.qss') as f:
             style = f.read()
             self.setStyleSheet(style)
 

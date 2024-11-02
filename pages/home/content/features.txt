@@ -1,4 +1,34 @@
-- Metadata
-- Learn
-- Plotting
-- Mutualinfo
+Metadata:
+<blockquote>
+    The metadata page is created for managing your datafiles and generating the belonging metadatafile. 
+    The main purpose of this feature is to prepare a metadatafile that's needed for running the Monte Carlo Smulation.
+    The metadatafile is basically a CSV-file describing the variables in your dataset, and the structure of this file will have an impact on the end results.
+    A metadatafile will be generation based on assumptions, using the <a href="https://pglpm.github.io/inferno/reference/metadatatemplate.html">metadatatemplate</a> function from the Inferno R package.
+    It's your job to make sure that the generated metadatafile is actually correct, and make any needed adjustments. 
+    The metadata page is designed to help you with this process.
+</blockquote>
+<br>
+
+Learn:
+<blockquote>
+    The learn page is where you run the Monte Carlo Simulation. 
+    This is done by using the <a href="https://pglpm.github.io/inferno/reference/learn.html">learn </a> function from the Inferno R package. 
+    In the app this function is simplified by using a lot of default parameters, but you have the option to configure the most important parameters. 
+    All you need for running the simulation is your datafile and the belonging metadatafile. 
+    Once the simulation is done, the results are saved in a "learnt" folder.
+    This folder will be used when calcutalting probabilities, mutualinfo, etc. 
+    It's worth mentioning that the simulation could potensially be very time-consuming (depending on your computer hardware, and the size of your datafile).
+</blockquote>
+<br>
+
+Plotting:
+<blockquote>
+    Work in progress...
+</blockquote>
+<br>
+
+Mutualinfo:
+<blockquote>
+    Work in progress...
+</blockquote>
+<br>

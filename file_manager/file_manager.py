@@ -1,11 +1,22 @@
 from PySide6.QtCore import QObject, Signal
 import os
 import shutil
-import stat
 
-UPLOAD_FOLDER = 'files/uploads/'
-METADATA_FOLDER = 'files/metadata/'
-LEARNT_FOLDER = 'files/learnt/'
+HOME_DIR = os.path.expanduser('~')
+APP_DIR = os.path.join(HOME_DIR, '.inferno_app')  # Using a hidden directory
+
+if not os.path.exists(APP_DIR):
+    os.makedirs(APP_DIR)
+
+UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
+METADATA_FOLDER = os.path.join(APP_DIR, 'metadata')
+LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
+CONFIG_FOLDER = os.path.join(APP_DIR, 'config')
+
+# Ensure the directories exist
+for folder in [UPLOAD_FOLDER, METADATA_FOLDER, LEARNT_FOLDER, CONFIG_FOLDER]:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
 class FileManager(QObject):
     # Signals to notify when files or learnt folders are updated
@@ -21,9 +32,16 @@ class FileManager(QObject):
 
     def load_files(self):
         """Load the files from the uploads, metadata, and learnt folders."""
-        self.uploaded_files = [f for f in os.listdir(UPLOAD_FOLDER) if f.endswith('.csv')]
-        self.metadata_files = [f for f in os.listdir(METADATA_FOLDER) if f.endswith('.csv')]
-        self.learnt_folders = [f for f in os.listdir(LEARNT_FOLDER) if os.path.isdir(os.path.join(LEARNT_FOLDER, f))]
+        if os.path.exists(UPLOAD_FOLDER):
+            self.uploaded_files = [f for f in os.listdir(UPLOAD_FOLDER) if f.endswith('.csv')]
+
+        if os.path.exists(METADATA_FOLDER):
+            self.metadata_files = [f for f in os.listdir(METADATA_FOLDER) if f.endswith('.csv')]
+
+        if os.path.exists(LEARNT_FOLDER):
+            self.learnt_folders = [
+                f for f in os.listdir(LEARNT_FOLDER) if os.path.isdir(os.path.join(LEARNT_FOLDER, f))
+            ]
 
     def refresh(self):
         """Refresh the list of uploaded files, metadata files, and learnt folders."""
