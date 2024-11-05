@@ -25,7 +25,6 @@ class HomePage(QWidget):
         title_label.setObjectName("title")
         title_label.setAlignment(Qt.AlignHCenter)
         title_layout.addWidget(title_label)
-
         layout.addLayout(title_layout)
 
         # Create scroll area

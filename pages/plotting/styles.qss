@@ -92,3 +92,18 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 QDialog {
     background-color: white;
 } 
+
+/* QLabel Style */
+QLabel#title {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+QLabel#frameTitle {
+    font-size: 18px;
+}
+
+/* QFrame Style */
+QFrame#plotFrame {
+    border: 1px solid #0288d1;
+}

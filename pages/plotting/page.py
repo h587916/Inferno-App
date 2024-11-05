@@ -5,7 +5,7 @@ import pandas as pd
 import importlib.resources
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, 
                                 QComboBox, QListWidget, QFileDialog, QAbstractItemView, QFormLayout, QLineEdit, 
-                                QFrame, QMessageBox, QSizePolicy, QAbstractItemView, QSpacerItem, QDialog)
+                                QMessageBox, QSizePolicy, QAbstractItemView, QSpacerItem, QDialog)
 from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -29,38 +29,59 @@ class PlottingPage(QWidget):
         super().__init__()
         self.file_manager = file_manager
         self.plot = False
-
+        self.plot_canvas = None
         main_layout = QVBoxLayout()
 
         # Set title
-        self.title_label = QLabel()
-        self.title_label.setWordWrap(True)
-        self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setStyleSheet("font-size: 30px;")
-        main_layout.addWidget(self.title_label)
+        title_label = QLabel("Plotting Probabilities")
+        title_label.setObjectName("title")
+        title_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title_label)
 
-        # Area to display results
-        self.plot_canvas = None
-        self.plot_layout = QVBoxLayout()
-        main_layout.addLayout(self.plot_layout)
+        # Create scroll area
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        # Create the QScrollArea
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)  # Make sure the widget inside resizes appropriately
+        scroll_content = QWidget()
+        scroll_layout = QVBoxLayout(scroll_content)
 
-        # Set a frame around the scroll area
-        self.scroll_area.setFrameShape(QFrame.Box) 
-        self.scroll_area.setStyleSheet("QScrollArea { border: 1px solid black; }") 
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # Fixed-size box for the plot
+        plot_frame = QFrame()
+        plot_frame.setObjectName("plotFrame")
+        plot_frame.setFixedSize(800, 600)  # Set the desired fixed size
+        self.plot_layout = QVBoxLayout(plot_frame)
+        scroll_layout.addWidget(plot_frame)
 
-        # Create a content widget that will go inside the scroll area
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
+        # Set frame title
+        self.frame_title = QLabel()
+        self.frame_title.setObjectName("frameTitle")
+        self.frame_title.setWordWrap(True)
+        self.frame_title.setAlignment(Qt.AlignCenter)
+        self.plot_layout.addWidget(self.frame_title)
 
-        # Set spacing and margin adjustments for compact appearance
-        content_layout.setSpacing(5)  # Adjust this value for more or less space between rows
-        content_layout.setContentsMargins(50, 20, 50, 20)  # left, top, right, bottom
+        self.plot_button_layout = QHBoxLayout()
+        self.plot_button_layout.setAlignment(Qt.AlignCenter)
+        self.plot_button_layout.setContentsMargins(0, 10, 0, 10) # left, top, right, bottom
+        self.plot_button_layout.setSpacing(20)
+
+        # Button to configure plot settings
+        self.configure_plot_button = QPushButton("Configure")
+        self.configure_plot_button.clicked.connect(self.configure_plot)
+        self.configure_plot_button.setFixedWidth(100)
+        self.plot_button_layout.addWidget(self.configure_plot_button)
+
+        # Button to save the plot
+        self.download_plot_button = QPushButton("Download")
+        self.download_plot_button.clicked.connect(self.download_plot)
+        self.download_plot_button.setFixedWidth(100)
+        self.plot_button_layout.addWidget(self.download_plot_button)
+
+        # Add the button layout to the plot_layout
+        self.plot_canvas_placeholder = QWidget()
+        self.plot_canvas_placeholder.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.plot_layout.addWidget(self.plot_canvas_placeholder)
+        self.plot_layout.addLayout(self.plot_button_layout)
 
         # Learnt folder selection
         learnt_layout = QHBoxLayout()
@@ -72,7 +93,7 @@ class PlottingPage(QWidget):
         learnt_layout.addWidget(learnt_label)
         learnt_layout.addWidget(self.pr_learnt_combobox)
         learnt_layout.setSpacing(5)  # Adjust the spacing between label and combobox
-        content_layout.addLayout(learnt_layout)
+        scroll_layout.addLayout(learnt_layout)
 
         # Dataset selection
         dataset_layout = QHBoxLayout() 
@@ -84,12 +105,12 @@ class PlottingPage(QWidget):
         dataset_layout.addWidget(dataset_label)
         dataset_layout.addWidget(self.pr_dataset_combobox)
         dataset_layout.setSpacing(5)  # Adjust the spacing between label and combobox
-        content_layout.addLayout(dataset_layout)
+        scroll_layout.addLayout(dataset_layout)
 
         # Add space between the file selection and the variate selection
         spacer_label = QLabel()
         spacer_label.setFixedHeight(20)
-        content_layout.addWidget(spacer_label)
+        scroll_layout.addWidget(spacer_label)
 
         # Target (Y) selection - multi-select list widget for selecting the target variables
         self.Y_listwidget = QListWidget()
@@ -98,8 +119,8 @@ class PlottingPage(QWidget):
         self.Y_listwidget.setMinimumHeight(self.Y_listwidget.sizeHintForRow(0) * self.Y_listwidget.count() + 150)
         self.Y_label_widget = QLabel("Select target variable(s) Y:")
         self.Y_label_widget.hide()
-        content_layout.addWidget(self.Y_label_widget)
-        content_layout.addWidget(self.Y_listwidget)
+        scroll_layout.addWidget(self.Y_label_widget)
+        scroll_layout.addWidget(self.Y_listwidget)
         self.selected_y_values = []
 
         # X conditions selection (multi-select list widget)
@@ -109,8 +130,8 @@ class PlottingPage(QWidget):
         self.X_listwidget.setMinimumHeight(self.X_listwidget.sizeHintForRow(0) * self.X_listwidget.count() + 150)
         self.X_label_widget = QLabel("Select conditional variable(s) X (optional):")
         self.X_label_widget.hide()
-        content_layout.addWidget(self.X_label_widget)
-        content_layout.addWidget(self.X_listwidget)
+        scroll_layout.addWidget(self.X_label_widget)
+        scroll_layout.addWidget(self.X_listwidget)
         self.selected_x_values = []
 
         # Combobox for selecting which variate should have a ranged value
@@ -119,29 +140,20 @@ class PlottingPage(QWidget):
         self.ranged_value_combobox.currentIndexChanged.connect(self.on_ranged_value_selected)
         self.ranged_value_label.hide()
         self.ranged_value_combobox.hide()
-        content_layout.addWidget(self.ranged_value_label)
-        content_layout.addWidget(self.ranged_value_combobox)
+        scroll_layout.addWidget(self.ranged_value_label)
+        scroll_layout.addWidget(self.ranged_value_combobox)
 
         # Layout to give values to the selected Y and X variates
         self.values_widget = QWidget()
         self.values_layout = QFormLayout()
         self.values_widget.setLayout(self.values_layout)
-        content_layout.addWidget(self.values_widget)
+        scroll_layout.addWidget(self.values_widget)
         self.values_widget.hide()
-
-        # Set the content widget to the scroll area
-        self.scroll_area.setWidget(content_widget)
-
-        # Create an intermediate layout to center the scroll_area
-        intermediate_layout = QVBoxLayout()
-        intermediate_layout.addWidget(self.scroll_area, alignment=Qt.AlignCenter)  # Center the scroll area
-
-        # Add the intermediate layout to the main layout
-        main_layout.addLayout(intermediate_layout)
 
         # Create a horizontal layout for the buttons
         button_layout = QHBoxLayout()
         button_layout.setAlignment(Qt.AlignCenter)
+        button_layout.setSpacing(20)
         button_layout.setContentsMargins(0, 10, 0, 10)  # left, top, right, bottom
 
         # Button to run the Pr function
@@ -150,28 +162,16 @@ class PlottingPage(QWidget):
         create_plot_button.setFixedWidth(150)
         button_layout.addWidget(create_plot_button)
 
-        # Add a spacer to separate the buttons
-        spacer = QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Minimum)
-        button_layout.addItem(spacer)
+        clear_all_button = QPushButton("Clear All")
+        clear_all_button.clicked.connect(self.clear_all)
+        clear_all_button.setFixedWidth(150)
+        button_layout.addWidget(clear_all_button)
 
-        # Button to configure plot settings
-        configure_plot_button = QPushButton("Configure Plot")
-        configure_plot_button.clicked.connect(self.configure_plot)
-        configure_plot_button.setFixedWidth(150)
-        button_layout.addWidget(configure_plot_button)
+        scroll_layout.addLayout(button_layout)
 
-        button_layout.addItem(spacer)
-
-        # Button to save the plot
-        download_plot_button = QPushButton("Download Plot")
-        download_plot_button.clicked.connect(self.download_plot)
-        download_plot_button.setFixedWidth(150)
-        button_layout.addWidget(download_plot_button)
-
-        # Add the button layout to the main layout
-        main_layout.addLayout(button_layout)
-
-        # Set layout
+        # Set the layout
+        scroll_area.setWidget(scroll_content)
+        main_layout.addWidget(scroll_area)
         self.setLayout(main_layout)
 
         # Apply the stylesheet
@@ -191,23 +191,6 @@ class PlottingPage(QWidget):
 
 
     ### HELPER FUNCTIONS ###
-
-    def resizeEvent(self, event):
-        # Get the size of the main window
-        current_size = self.size()
-
-        # Set a percentage of the available space for the scroll area
-        scroll_area_width = int(current_size.width() * 0.50)  # 50% of the width
-        self.scroll_area.setFixedWidth(scroll_area_width)
-        if self.plot:
-            scroll_area_height = int(current_size.height() * 0.30) # 30% of the height
-            self.scroll_area.setFixedHeight(scroll_area_height)
-        else:
-            scroll_area_height = int(current_size.height() * 0.80) # 80% of the height
-            self.scroll_area.setFixedHeight(scroll_area_height)
-
-        # Call the base class's resizeEvent to ensure normal behavior
-        super().resizeEvent(event)
 
     def update_title(self):
         """Update the title based on the selected values and input values."""
@@ -229,7 +212,8 @@ class PlottingPage(QWidget):
         else:
             title = "P(Y=y | X=x, data)"
 
-        self.title_label.setText(title)
+        self.frame_title.setText(title)
+
 
     def load_files_pr(self):
         """Load dataset files into the PR dataset combobox from the FileManager."""
@@ -399,12 +383,6 @@ class PlottingPage(QWidget):
 
     def on_create_plot_button_clicked(self):
         self.plot = True
-        
-        current_size = self.size()
-        scroll_area_width = int(current_size.width() * 0.5)  # 50% of the width
-        scroll_area_height = int(current_size.height() * 0.30) # 30% of the height
-        self.scroll_area.setFixedSize(scroll_area_width, scroll_area_height)
-
         self.run_pr_function()
 
     def load_pr_variables(self):
@@ -516,7 +494,7 @@ class PlottingPage(QWidget):
         self.load_configuration()
 
         # Clear previous plot if any
-        if self.plot_canvas is not None:
+        if hasattr(self, 'plot_canvas') and self.plot_canvas is not None:
             self.plot_layout.removeWidget(self.plot_canvas)
             self.plot_canvas.deleteLater()
             self.plot_canvas = None
@@ -528,7 +506,7 @@ class PlottingPage(QWidget):
         self.plot_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Add the canvas to the plot_layout
-        self.plot_layout.addWidget(self.plot_canvas)
+        self.plot_layout.insertWidget(1, self.plot_canvas)
 
         # Extract the column name dynamically from Y_values
         y_column = self.Y.columns[0]
@@ -701,3 +679,43 @@ class PlottingPage(QWidget):
                 QMessageBox.information(self, "Success", f"Plot saved to {file_path}")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save plot: {str(e)}")
+
+    def clear_all(self):
+        """Clears all selections and resets the interface."""
+        # Clear the comboboxes
+        self.pr_dataset_combobox.setCurrentIndex(-1)
+        self.pr_learnt_combobox.setCurrentIndex(-1)
+
+        # Clear the list widgets
+        self.Y_listwidget.clear()
+        self.X_listwidget.clear()
+
+        # Hide the labels and list widgets
+        self.Y_label_widget.hide()
+        self.X_label_widget.hide()
+
+        # Clear the selections
+        self.Y_listwidget.clearSelection()
+        self.X_listwidget.clearSelection()
+
+        # Reset selected variables lists
+        self.selected_y_values = []
+        self.selected_x_values = []
+
+        # Clear input values in values_layout
+        self.clear_values_layout()
+
+        # Hide the values_widget
+        self.values_widget.hide()
+
+        # Hide the ranged_value combobox and label
+        self.ranged_value_combobox.hide()
+        self.ranged_value_label.hide()
+
+        # Reset the title to default
+        self.update_title()
+
+        if hasattr(self, 'plot_canvas') and self.plot_canvas is not None:
+            self.plot_layout.removeWidget(self.plot_canvas)
+            self.plot_canvas.deleteLater()
+            self.plot_canvas = None

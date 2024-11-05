@@ -26,10 +26,7 @@ class LearnPage(QWidget):
 
         # Title label
         title_label = QLabel("Monte Carlo Simulation")
-        font = title_label.font()
-        font.setPointSize(20)
-        font.setBold(True)
-        title_label.setFont(font)
+        title_label.setObjectName("title")
         title_label.setAlignment(Qt.AlignHCenter)
         title_label.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
         layout.addWidget(title_label, 0, 0, 1, 2)

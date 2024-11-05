@@ -78,3 +78,9 @@ QGroupBox {
 QComboBox {
     background-color: white;
 }
+
+/* Qlabel Style */
+QLabel#title {
+    font-size: 24px;
+    font-weight: bold;
+}

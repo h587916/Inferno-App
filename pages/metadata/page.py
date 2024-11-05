@@ -85,10 +85,7 @@ class MetadataPage(QWidget):
 
         # Title label
         self.panel_title = QLabel("File Management & Metadata Generation")
-        font = self.panel_title.font()
-        font.setPointSize(20)
-        font.setBold(True)
-        self.panel_title.setFont(font)
+        self.panel_title.setObjectName("title")
         self.panel_title.setAlignment(Qt.AlignHCenter)
         self.panel_title.setContentsMargins(0, 0, 0, 0) # left, top, right, bottom
         layout.addWidget(self.panel_title, 0, 0, 1, 2)  # Spanning 2 columns
@@ -189,10 +186,7 @@ class MetadataPage(QWidget):
 
         # Add title
         self.meta_title = QLabel()
-        font = self.meta_title.font()
-        font.setPointSize(20)
-        font.setBold(True)
-        self.meta_title.setFont(font)
+        self.meta_title.setObjectName("title")
         self.meta_title.setAlignment(Qt.AlignHCenter)
         self.meta_title.setContentsMargins(0, 0, 0, 10) # left, top, right, bottom
         layout.addWidget(self.meta_title)
