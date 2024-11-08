@@ -85,7 +85,7 @@ def run_Pr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantiles =
 
         # Convert the DataFrames to R objects
         r_Y = pandas2ri.py2rpy(Y)
-        r_X = pandas2ri.py2rpy(X) if X is not None and not X.empty else rinterface.NUL
+        r_X = pandas2ri.py2rpy(X) if X is not None and not X.empty else rinterface.NULL
         learnt_r = StrVector([learnt_dir])
         quantiles_r = FloatVector(quantiles)
 

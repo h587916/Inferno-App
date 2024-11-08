@@ -188,12 +188,12 @@ class PlottingPage(QWidget):
         self.file_manager.refresh()
 
         # Update the title after initializing all widgets
-        self.update_title()
+        self.update_plot_title()
 
 
     ### HELPER FUNCTIONS ###
 
-    def update_title(self):
+    def update_plot_title(self):
         """Update the title based on the selected values and input values."""
         y_values = self.get_input_value(self.selected_y_values)
         x_values = self.get_input_value(self.selected_x_values)
@@ -251,7 +251,7 @@ class PlottingPage(QWidget):
             self.clear_values_layout()
         else:
             self.data = "data"
-        self.update_title()
+        self.update_plot_title()
 
     def load_metadata_pr(self):
         """Load variates from the metadata.csv file in the selected learnt folder."""
@@ -291,18 +291,26 @@ class PlottingPage(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to read metadata: {str(e)}")
             return {}
+        
+    def update_input_frame_visibility(self):
+        """Show or hide the input frame based on the selected Y and X values."""
+        if self.Y_listwidget.selectedItems():
+            self.input_frame.show()
+        else:
+            self.input_frame.hide()
 
     def on_Y_label_selected(self):
         selected_items = self.Y_listwidget.selectedItems()
         self.selected_y_values = [item.text() for item in selected_items]
         self.update_values_layout()
-        self.update_title()
+        self.update_plot_title()
+        self.update_input_frame_visibility()
     
     def on_X_label_selected(self):
         selected_items = self.X_listwidget.selectedItems()
         self.selected_x_values = [item.text() for item in selected_items]
         self.update_values_layout()
-        self.update_title()
+        self.update_plot_title()
 
     def clear_values_layout(self):
         """Clear and hide the values layout."""
@@ -321,7 +329,7 @@ class PlottingPage(QWidget):
             label = QLabel(f"{y_value} = ")
             input_box = QLineEdit()
             input_box.setPlaceholderText("y")
-            input_box.textChanged.connect(self.update_title)
+            input_box.textChanged.connect(self.update_plot_title)
 
             frame = QFrame()
             frame.setFrameShape(QFrame.Box)
@@ -337,7 +345,7 @@ class PlottingPage(QWidget):
             label = QLabel(f"{x_value} = ")
             input_box = QLineEdit()
             input_box.setPlaceholderText("x")
-            input_box.textChanged.connect(self.update_title)
+            input_box.textChanged.connect(self.update_plot_title)
             
             frame = QFrame()
             frame.setFrameShape(QFrame.Box)
@@ -347,8 +355,6 @@ class PlottingPage(QWidget):
             frame_layout.addWidget(input_box)
 
             self.values_layout.addRow(label, frame)
-
-        self.input_frame.show()
 
     def get_input_value(self, selected_values):
         """Get the input value from the QLineEdit widgets inside the QFrames."""
@@ -368,6 +374,10 @@ class PlottingPage(QWidget):
 
     def run_pr_function(self):
         """ Run the Pr function and plot the probabilities."""
+        if not self.all_values_filled():
+            QMessageBox.warning(self, "Incomplete Input", "Please fill out all value-fields for the selected variables.")
+            return
+
         y_values = self.get_input_value(self.selected_y_values)
         x_values = self.get_input_value(self.selected_x_values)
 
@@ -406,31 +416,36 @@ class PlottingPage(QWidget):
     def parse_input_value(self, value_string):
         """Parse the input value string and return a list of values."""
         if ':' in value_string:
-            # It's a range
             start_str, end_str = value_string.split(':', 1)
-            # Remove any parentheses or whitespace
             start_str = start_str.strip().strip('()')
             end_str = end_str.strip().strip('()')
-            # Convert to numbers
             try:
                 start_val = float(start_str)
                 end_val = float(end_str)
-                # Decide on the number of points
                 num_points = int(abs(end_val - start_val)) + 1
                 if start_val.is_integer() and end_val.is_integer():
-                    # Use integers
                     value_list = list(range(int(start_val), int(end_val) + 1))
                 else:
-                    # Use numpy.linspace for floats
                     value_list = np.linspace(start_val, end_val, num=num_points).tolist()
             except ValueError:
-                # Handle error
                 QMessageBox.warning(None, "Invalid Input", f"Invalid range input: {value_string}")
                 value_list = []
         else:
-            # Single value
             value_list = [value_string.strip()]
         return value_list
+    
+    def all_values_filled(self):
+        """Check if all selected Y and X variables have been assigned values."""
+        y_values = self.get_input_value(self.selected_y_values)
+        x_values = self.get_input_value(self.selected_x_values)
+        
+        # Check if any selected Y or X variable has an empty value
+        for variable in self.selected_y_values + self.selected_x_values:
+            if variable not in y_values and variable not in x_values:
+                return False
+            if not y_values.get(variable, '') and not x_values.get(variable, ''):
+                return False
+        return True
 
     def should_plot(self):
         """Check if the plot should be generated based on the input data."""
@@ -461,12 +476,7 @@ class PlottingPage(QWidget):
         ax = figure.add_subplot(111)
         self.plot_canvas = FigureCanvas(figure)
         self.plot_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
-        # Add the canvas to the plot_layout
         self.plot_layout.insertWidget(1, self.plot_canvas)
-
-        # Extract the column name dynamically from Y_values
-        y_column = self.Y.columns[0]
 
         # Convert to numpy arrays
         probabilities_values = np.array(self.probabilities_values).flatten()
@@ -484,6 +494,8 @@ class PlottingPage(QWidget):
             upper_quantiles = np.zeros(self.Y.shape[0])
 
         # Plot the quantiles
+        y_column = self.Y.columns[0]
+
         ax.fill_between(
             self.Y[y_column], 
             lower_quantiles, 
@@ -500,7 +512,6 @@ class PlottingPage(QWidget):
         ax.set_ylabel('Probability')
 
         # Overlay the probability distribution curve
-        # Interpolate to make the plot look smoother
         spl = make_interp_spline(self.Y[y_column], probabilities_values, k=3)
         Y_smooth = np.linspace(self.Y[y_column].min(), self.Y[y_column].max(), 500)
         prob_smooth = spl(Y_smooth)
@@ -619,7 +630,6 @@ class PlottingPage(QWidget):
             QMessageBox.warning(self, "No Plot", "There is no plot to save.")
             return
 
-        # Open a file dialog to choose save location and filename
         options = QFileDialog.Options()
         file_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -631,7 +641,6 @@ class PlottingPage(QWidget):
 
         if file_path:
             try:
-                # Save the figure
                 self.plot_canvas.figure.savefig(file_path)
                 QMessageBox.information(self, "Success", f"Plot saved to {file_path}")
             except Exception as e:
@@ -643,32 +652,24 @@ class PlottingPage(QWidget):
                                            QMessageBox.Yes | QMessageBox.No)
         
         if confirm == QMessageBox.Yes:
-            # Clear the comboboxes
             self.pr_learnt_combobox.setCurrentIndex(-1)
 
-            # Clear the list widgets
             self.Y_listwidget.clear()
             self.X_listwidget.clear()
 
-            # Hide the variable selection frame
             self.variable_selection_frame.hide()
 
-            # Clear the selections
             self.Y_listwidget.clearSelection()
             self.X_listwidget.clearSelection()
 
-            # Reset selected variables lists
             self.selected_y_values = []
             self.selected_x_values = []
 
-            # Clear input values in values_layout
             self.clear_values_layout()
 
-            # Hide the input frame
             self.input_frame.hide()
 
-            # Reset the title to default
-            self.update_title()
+            self.update_plot_title()
 
             if hasattr(self, 'plot_canvas') and self.plot_canvas is not None:
                 self.plot_layout.removeWidget(self.plot_canvas)
