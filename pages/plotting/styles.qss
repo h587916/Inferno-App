@@ -99,7 +99,7 @@ QLabel#title {
     font-weight: bold;
 }
 
-QLabel#frameTitle {
+QLabel#plotTitle {
     font-size: 18px;
 }
 
