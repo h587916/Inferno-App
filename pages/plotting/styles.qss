@@ -107,3 +107,7 @@ QLabel#plotTitle {
 QFrame#plotFrame {
     border: 1px solid #0288d1;
 }
+
+QFrame#varInputFrame {
+    border: 1px solid #0288d1;
+}

@@ -30,9 +30,14 @@ class PlottingPage(QWidget):
         self.file_manager = file_manager
         self.plot = False
         self.plot_canvas = None
-        main_layout = QVBoxLayout()
         self.selected_y_values = []
         self.selected_x_values = []
+        self.metadata_df = pd.DataFrame()
+        self.metadata_dict = {}
+        self.variable_values = {}
+        self.input_fields = {}
+
+        main_layout = QVBoxLayout()
 
         # Set page title
         title_layout = QVBoxLayout()
@@ -54,22 +59,25 @@ class PlottingPage(QWidget):
 
         # --- Left side of the page ---
         left_layout = QVBoxLayout()
+        left_layout.setAlignment(Qt.AlignTop)
 
         # Learnt folder selection
         self.learn_frame = QFrame()
         self.learn_frame.setObjectName("learnFrame")
         learnt_layout = QHBoxLayout(self.learn_frame)
+        learnt_layout.setContentsMargins(0, 0, 0, 0) # left, top, right, bottom
+        learnt_layout.setSpacing(5)
 
         learnt_label = QLabel("Select a learnt folder:")
         self.pr_learnt_combobox = CustomComboBox()
         self.pr_learnt_combobox.currentIndexChanged.connect(self.on_learnt_folder_selected)
-        self.pr_learnt_combobox.setMaximumWidth(300)
-        fixed_label_width = 120  # You can adjust this to ensure both labels end at the same point
-        learnt_label.setFixedWidth(fixed_label_width)
+
+        learnt_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.pr_learnt_combobox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         learnt_layout.addWidget(learnt_label)
         learnt_layout.addWidget(self.pr_learnt_combobox)
-        learnt_layout.setSpacing(5)  # Adjust the spacing between label and combobox
+
         left_layout.addWidget(self.learn_frame, alignment=Qt.AlignTop)
 
         # Variable selection frame
@@ -85,16 +93,18 @@ class PlottingPage(QWidget):
         self.Y_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
         self.Y_listwidget.itemSelectionChanged.connect(self.on_Y_label_selected)
         variable_selection_layout.addWidget(self.Y_listwidget)
-        # self.selected_y_values = []
+
+        variable_selection_layout.addSpacing(20)
         
-        X_label_widget = QLabel("Select conditional X-variables (optional):")
-        variable_selection_layout.addWidget(X_label_widget)
+        self.X_label_widget = QLabel("Select conditional X-variables (optional):")
+        self.X_label_widget.hide()
+        variable_selection_layout.addWidget(self.X_label_widget)
 
         self.X_listwidget = QListWidget()
+        self.X_listwidget.hide()
         self.X_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
         self.X_listwidget.itemSelectionChanged.connect(self.on_X_label_selected)
         variable_selection_layout.addWidget(self.X_listwidget)
-        # self.selected_x_values = []
 
         left_layout.addWidget(self.variable_selection_frame, alignment=Qt.AlignTop)
 
@@ -127,13 +137,21 @@ class PlottingPage(QWidget):
         input_layout.addLayout(button_layout)
         left_layout.addWidget(self.input_frame)
 
+        # Wrap the left side in a widget
+        left_widget = QWidget()
+        left_widget.setLayout(left_layout)
+        left_widget.setMinimumWidth(400)
+        left_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+
         # --- Right side of the page ---
         right_layout = QVBoxLayout()
 
         # Fixed-size box for the plot
         plot_frame = QFrame()
         plot_frame.setObjectName("plotFrame")
-        plot_frame.setFixedSize(800, 600)
+        plot_frame.setMinimumWidth(600)
+        plot_frame.setMinimumHeight(400)
+        plot_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.plot_layout = QVBoxLayout(plot_frame)
         self.plot_layout.setContentsMargins(0, 20, 0, 10) # left, top, right, bottom
 
@@ -166,14 +184,19 @@ class PlottingPage(QWidget):
         self.plot_button_layout.addWidget(self.download_plot_button)
 
         # Add the frames to the right layout
-        right_layout.addWidget(plot_frame, alignment=Qt.AlignTop)
+        right_layout.addWidget(plot_frame)
         right_layout.addLayout(self.plot_button_layout)
-        right_layout.addStretch()
+
+        # Wrap the right side in a widget
+        right_widget = QWidget()
+        right_widget.setLayout(right_layout)
+        right_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Add the content to the scroll layout, then to the main layout
-        scroll_layout.addLayout(left_layout)
+        scroll_layout.addWidget(left_widget, stretch=0)
         scroll_layout.addSpacing(50)
-        scroll_layout.addLayout(right_layout)
+        scroll_layout.addWidget(right_widget, stretch=1)
+
         scroll_area.setWidget(scroll_content)
         main_layout.addWidget(scroll_area)
         self.setLayout(main_layout)
@@ -191,21 +214,33 @@ class PlottingPage(QWidget):
         self.update_plot_title()
 
 
-    ### HELPER FUNCTIONS ###
-
+############# PLOT TITLE ############# 
     def update_plot_title(self):
         """Update the title based on the selected values and input values."""
         y_values = self.get_input_value(self.selected_y_values)
         x_values = self.get_input_value(self.selected_x_values)
         data = self.pr_learnt_combobox.currentText()
 
-        y_labels = ", ".join([f"{label}={y_values.get(label, '') or 'y'}" for label in self.selected_y_values])
-        x_labels = ", ".join([f"{label}={x_values.get(label, '') or 'x'}" for label in self.selected_x_values])
+        def format_value(value):
+            if isinstance(value, dict):
+                start = value.get('start', '')
+                end = value.get('end', '')
+                if start and end:
+                    return f"{start}:{end}"
+                elif start:
+                    return f"{start}"
+                else:
+                    return ''
+            else:
+                return value or ''
+
+        y_labels = ", ".join([f"{label}={format_value(y_values.get(label, '')) or 'y'}" for label in self.selected_y_values])
+        x_labels = ", ".join([f"{label}={format_value(x_values.get(label, '')) or 'x'}" for label in self.selected_x_values])
 
         if y_labels and x_labels:
             title = f"P({y_labels} | {x_labels}, {data})"
         elif y_labels:
-            title = f"P({y_labels} | {self.data})"
+            title = f"P({y_labels} | {data})"
         elif x_labels:
             title = f"P(Y=y | {x_labels}, {data})"
         elif data:
@@ -215,12 +250,13 @@ class PlottingPage(QWidget):
 
         self.plot_title.setText(title)
 
+
+############# LEARNT FOLDERS #############
     def load_result_folders_pr(self):
         """Load learnt folders into the PR learnt combobox from the FileManager."""
         self.pr_learnt_combobox.clear()
 
-        # Disconnect the signal temporarily while loading items
-        self.pr_learnt_combobox.currentIndexChanged.disconnect(self.on_learnt_folder_selected)
+        self.pr_learnt_combobox.currentIndexChanged.disconnect(self.on_learnt_folder_selected) # Disconnect the signal
 
         if self.file_manager.learnt_folders:
             self.pr_learnt_combobox.addItems(self.file_manager.learnt_folders)
@@ -229,8 +265,7 @@ class PlottingPage(QWidget):
             self.pr_learnt_combobox.addItem("No learnt folders available")
             self.pr_learnt_combobox.setItemData(1, Qt.NoItemFlags)
 
-        # Reconnect the signal after the combobox is populated
-        self.pr_learnt_combobox.currentIndexChanged.connect(self.on_learnt_folder_selected)
+        self.pr_learnt_combobox.currentIndexChanged.connect(self.on_learnt_folder_selected) # Reconnect the signal
 
     def on_learnt_folder_selected(self, index):
         """Update the data value when a learnt folder is selected."""
@@ -239,20 +274,27 @@ class PlottingPage(QWidget):
             self.load_metadata_pr()
             self.variable_selection_frame.show()
 
-            # Clear selections in Y and X list widgets
             self.Y_listwidget.clearSelection()
             self.X_listwidget.clearSelection()
 
-            # Reset selected variables lists
             self.selected_y_values = []
             self.selected_x_values = []
 
-            # Clear any input values in the input boxes
             self.clear_values_layout()
         else:
             self.data = "data"
         self.update_plot_title()
 
+    def clear_values_layout(self):
+        """Clear and hide the values layout."""
+        while self.values_layout.count():
+            item = self.values_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.variable_values.clear()
+
+############# VARIABLE SELECTION #############
     def load_metadata_pr(self):
         """Load variates from the metadata.csv file in the selected learnt folder."""
         learnt_folder = self.pr_learnt_combobox.currentText()
@@ -263,121 +305,244 @@ class PlottingPage(QWidget):
             return
         
         try:
-            metadata_df = pd.read_csv(metadata_path)
+            self.metadata_df = pd.read_csv(metadata_path)
 
             self.Y_listwidget.clear()
             self.X_listwidget.clear()
 
-            variates = metadata_df["name"].tolist()
+            variates = self.metadata_df["name"].tolist()
             self.Y_listwidget.addItems(variates)
             self.X_listwidget.addItems(variates)
+
+            self.adjust_list_widget_height(self.Y_listwidget)
+            self.adjust_list_widget_height(self.X_listwidget)
 
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to load metadata: {str(e)}")
 
-    def get_metadata_for_selected_values(self):
-        """Retrieve metadata for selected Y and X values from the metadata.csv file in the learnt folder."""
-        learnt_folder = self.pr_learnt_combobox.currentText()
-        metadata_path = os.path.join(LEARNT_FOLDER, learnt_folder, 'metadata.csv')
+    def adjust_list_widget_height(self, list_widget, max_visible_items=20):
+        num_items = list_widget.count()
+        visible_items = min(num_items, max_visible_items)
+        row_height = list_widget.sizeHintForRow(0) if list_widget.count() > 0 else 20
+        total_height = row_height * visible_items + 2 * list_widget.frameWidth()
+        list_widget.setFixedHeight(total_height)
 
+    def get_metadata_for_selected_value(self, variable_name):
+        """Retrieve metadata for a single selected variable from the metadata.csv file."""
         try:
-            metadata_df = pd.read_csv(metadata_path)
-            selected_values = self.selected_y_values + self.selected_x_values
-            metadata_filtered = metadata_df[metadata_df["name"].isin(selected_values)]
-            metadata_dict = metadata_filtered.set_index("name").to_dict("index")
+            row = self.metadata_df[self.metadata_df["name"] == variable_name].iloc[0]
 
-            return metadata_dict
+            total_columns = len(self.metadata_df.columns)
+            v_column_count = total_columns - 7  # Adjust for V columns
+            v_columns = [f"V{i}" for i in range(1, v_column_count + 1)]
+            
+            var_type = row["type"].lower()
+            var_metadata = {"type": var_type}
+
+            # Nominal type with options in V columns
+            if var_type == "nominal":
+                var_metadata["options"] = [row[col] for col in v_columns if pd.notna(row.get(col))]
+
+            # Continuous type with domain range
+            elif var_type == "continuous":
+                var_metadata["domainmin"] = float(row.get("domainmin"))
+                var_metadata["domainmax"] = float(row.get("domainmax"))
+
+            # Ordinal type, determine numeric or non-numeric
+            elif var_type == "ordinal":
+                options = [row[col] for col in v_columns if pd.notna(row.get(col))]
+                if options:
+                    var_metadata["options"] = options
+                else:
+                    var_metadata["domainmin"] = float(row.get("domainmin"))
+                    var_metadata["domainmax"] = float(row.get("domainmax"))
+
+            return var_metadata
 
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to read metadata: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to retrieve metadata for {variable_name}: {str(e)}")
             return {}
-        
-    def update_input_frame_visibility(self):
-        """Show or hide the input frame based on the selected Y and X values."""
-        if self.Y_listwidget.selectedItems():
-            self.input_frame.show()
-        else:
-            self.input_frame.hide()
 
     def on_Y_label_selected(self):
+        """Update the selected Y variables and input fields based on the selected items."""
         selected_items = self.Y_listwidget.selectedItems()
-        self.selected_y_values = [item.text() for item in selected_items]
-        self.update_values_layout()
-        self.update_plot_title()
-        self.update_input_frame_visibility()
-    
+        new_selected_y_values = [item.text() for item in selected_items]
+
+        added_variables = list(set(new_selected_y_values) - set(self.selected_y_values))
+        removed_variables = list(set(self.selected_y_values) - set(new_selected_y_values))
+
+        self.selected_y_values = new_selected_y_values
+
+        self.update_label_selected(added_variables, removed_variables)
+
     def on_X_label_selected(self):
+        """Update the selected X variables and input fields based on the selected items."""
         selected_items = self.X_listwidget.selectedItems()
-        self.selected_x_values = [item.text() for item in selected_items]
-        self.update_values_layout()
+        new_selected_x_values = [item.text() for item in selected_items]
+
+        added_variables = list(set(new_selected_x_values) - set(self.selected_x_values))
+        removed_variables = list(set(self.selected_x_values) - set(new_selected_x_values))
+
+        self.selected_x_values = new_selected_x_values
+
+        self.update_label_selected(added_variables, removed_variables)
+
+    def update_label_selected(self, added_variables, removed_variables):
+        """Update the selected variables and input fields based on the added and removed variables."""
+        for value in added_variables:
+            if value not in self.metadata_dict:
+                self.metadata_dict[value] = self.get_metadata_for_selected_value(value)
+        for value in removed_variables:
+            if value in self.metadata_dict:
+                del self.metadata_dict[value]
+
+        self.update_disabled_items()
+        self.update_values_layout(added_variables, removed_variables)
+        self.update_X_list_visibility()
         self.update_plot_title()
+        self.clear_plot()
 
-    def clear_values_layout(self):
-        """Clear and hide the values layout."""
-        while self.values_layout.count():
-            item = self.values_layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
+    def update_disabled_items(self):
+        """Disable selected items in the opposite list to prevent cross-selection."""
+        # Disable Y-selected items in the X list
+        for i in range(self.X_listwidget.count()):
+            item = self.X_listwidget.item(i)
+            item.setFlags(item.flags() | Qt.ItemIsEnabled)
+            if item.text() in self.selected_y_values:
+                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
 
-    def update_values_layout(self):
-        """Update the values layout with input boxes for selected Y and X variates."""
-        self.clear_values_layout()
+        # Disable X-selected items in the Y list
+        for i in range(self.Y_listwidget.count()):
+            item = self.Y_listwidget.item(i)
+            item.setFlags(item.flags() | Qt.ItemIsEnabled)
+            if item.text() in self.selected_x_values:
+                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
 
-        # Add input boxes for selected Y variates
-        for y_value in self.selected_y_values:
-            label = QLabel(f"{y_value} = ")
-            input_box = QLineEdit()
-            input_box.setPlaceholderText("y")
-            input_box.textChanged.connect(self.update_plot_title)
+    def update_X_list_visibility(self):
+        """Show or hide the input frame based on the selected Y and X values."""
+        if self.Y_listwidget.selectedItems():
+            self.X_label_widget.show()
+            self.X_listwidget.show()
+            self.input_frame.show()
+        else:
+            self.X_label_widget.hide()
+            self.X_listwidget.clearSelection()
+            self.selected_x_values = []
+            self.X_listwidget.hide()
+            self.input_frame.hide()
 
-            frame = QFrame()
-            frame.setFrameShape(QFrame.Box)
-            frame.setStyleSheet("QFrame { border: 1px solid #0288d1; }")
+############# INPUT VALUES #############
+    def update_values_layout(self, added_variables, removed_variables):
+        """Update the values layout by adding or removing input boxes for variables without resetting existing values."""
+        for variable in removed_variables:
+            if variable in self.input_fields:
+                label, widget = self.input_fields[variable]
+                self.values_layout.removeRow(label)
+                del self.input_fields[variable]
+                if variable in self.variable_values:
+                    del self.variable_values[variable]
 
-            frame_layout = QVBoxLayout(frame)
-            frame_layout.addWidget(input_box)
+        for variable in added_variables:
+            label = QLabel(f"{variable} = ")
+            var_type = self.metadata_dict.get(variable, {}).get("type")
 
-            self.values_layout.addRow(label, frame)
+            if var_type == "nominal" or (var_type == "ordinal" and "options" in self.metadata_dict[variable]):
+                options = self.metadata_dict[variable].get("options", [])
+                input_box = QComboBox()
+                input_box.addItems(options)
+                if variable in self.variable_values:
+                    input_box.setCurrentText(self.variable_values[variable])
+                input_box.currentIndexChanged.connect(self.value_changed)
 
-        # Add input boxes for selected X variates
-        for x_value in self.selected_x_values:
-            label = QLabel(f"{x_value} = ")
-            input_box = QLineEdit()
-            input_box.setPlaceholderText("x")
-            input_box.textChanged.connect(self.update_plot_title)
-            
-            frame = QFrame()
-            frame.setFrameShape(QFrame.Box)
-            frame.setStyleSheet("QFrame { border: 1px solid #0288d1; }")
+                self.values_layout.addRow(label, input_box)
+                self.input_fields[variable] = (label, input_box)
 
-            frame_layout = QVBoxLayout(frame)
-            frame_layout.addWidget(input_box)
+            elif var_type == "continuous" or (var_type == "ordinal" and "options" not in self.metadata_dict[variable]):
+                layout = QHBoxLayout()
+                layout.setAlignment(Qt.AlignLeft)
 
-            self.values_layout.addRow(label, frame)
+                start_input = QLineEdit()
+                start_input.setPlaceholderText("Enter value")
+                start_input.textChanged.connect(self.value_changed)
+                start_input.setAlignment(Qt.AlignCenter)
+
+                end_input = QLineEdit()
+                end_input.setPlaceholderText("(optional)")
+                end_input.textChanged.connect(self.value_changed)
+                end_input.setAlignment(Qt.AlignCenter)
+
+                if variable in self.variable_values:
+                    start_val = self.variable_values[variable].get('start', '')
+                    end_val = self.variable_values[variable].get('end', '')
+                    start_input.setText(start_val)
+                    end_input.setText(end_val)
+
+                # Wrap each input field in its own frame
+                start_frame = QFrame()
+                start_frame.setFrameShape(QFrame.Box)
+                start_frame.setObjectName("varInputFrame")
+                start_frame.setFixedWidth(70)
+                start_frame.setFixedHeight(30)
+                start_layout = QHBoxLayout(start_frame)
+                start_layout.setContentsMargins(0, 0, 0, 0)
+                start_layout.addWidget(start_input)
+
+                end_frame = QFrame()
+                end_frame.setFrameShape(QFrame.Box)
+                end_frame.setObjectName("varInputFrame")
+                end_frame.setFixedWidth(70)
+                end_frame.setFixedHeight(30)
+                end_layout = QHBoxLayout(end_frame)
+                end_layout.setContentsMargins(0, 0, 0, 0)
+                end_layout.addWidget(end_input)
+
+                # Add widgets to the layout
+                layout.addWidget(QLabel("From "))
+                layout.addWidget(start_frame)
+                layout.addWidget(QLabel(" To "))
+                layout.addWidget(end_frame)
+                layout.addStretch()
+
+                self.values_layout.addRow(label, layout)
+                self.input_fields[variable] = (label, {'start': start_input, 'end': end_input})
+
+            else:
+                QMessageBox.warning(None, "Invalid Type", f"Invalid variable type for {variable}: {var_type}")
+
+    def value_changed(self):
+        """Update the stored variable values when the input value changes."""
+        self.get_input_value(self.selected_y_values + self.selected_x_values)
+        self.clear_plot()
+        self.update_plot_title()
 
     def get_input_value(self, selected_values):
-        """Get the input value from the QLineEdit widgets inside the QFrames."""
+        """Get the input values from the widgets."""
         input_values = {}
-        for i in range(self.values_layout.rowCount()):
-            label_item = self.values_layout.itemAt(i, QFormLayout.LabelRole)
-            widget_item = self.values_layout.itemAt(i, QFormLayout.FieldRole)
-            if label_item and widget_item:
-                label_text = label_item.widget().text().split('=')[0].strip()
-                if label_text in selected_values:
-                    frame = widget_item.widget()
-                    if isinstance(frame, QFrame):
-                        input_box = frame.findChild(QLineEdit)
-                        if input_box:
-                            input_values[label_text] = input_box.text()
+        for variable in selected_values:
+            if variable in self.input_fields:
+                label, widget = self.input_fields[variable]
+
+                if isinstance(widget, dict) and 'start' in widget and 'end' in widget:
+                    start_input = widget['start']
+                    end_input = widget['end']
+                    start_value = start_input.text()
+                    end_value = end_input.text()
+                    input_values[variable] = {'start': start_value, 'end': end_value}
+                else:
+                    if isinstance(widget, QComboBox):
+                        input_values[variable] = widget.currentText()
+                    else:
+                        QMessageBox.warning(None, "Invalid Input", f"Invalid input field for {variable}")
+        self.variable_values.update(input_values)
         return input_values
 
+############# RUN PROBABILITY FUNCTION #############
     def run_pr_function(self):
         """ Run the Pr function and plot the probabilities."""
         if not self.all_values_filled():
             QMessageBox.warning(self, "Incomplete Input", "Please fill out all value-fields for the selected variables.")
             return
-
+        
         y_values = self.get_input_value(self.selected_y_values)
         x_values = self.get_input_value(self.selected_x_values)
 
@@ -406,47 +571,60 @@ class PlottingPage(QWidget):
             if self.should_plot():
                 self.probabilities_values, self.probabilities_quantiles = run_Pr(self.Y, learnt_dir, self.X)
                 self.plot_probabilities()
-                self.plot = True
             else:
                 QMessageBox.warning(None, "No Plot", "No plot generated. No numeric variable with multiple values to plot.")
         
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to run the Pr function: {str(e)}")
 
-    def parse_input_value(self, value_string):
-        """Parse the input value string and return a list of values."""
-        if ':' in value_string:
-            start_str, end_str = value_string.split(':', 1)
-            start_str = start_str.strip().strip('()')
-            end_str = end_str.strip().strip('()')
+    def parse_input_value(self, value):
+        """Parse the input value string for non-nominal types, supporting range (a:b) input."""
+        if isinstance(value, dict) and 'start' in value:
+            start_str = value['start']
+            end_str = value['end']
+            if start_str == '':
+                QMessageBox.warning(None, "Invalid Input", "Start value cannot be empty.")
+                return []
             try:
                 start_val = float(start_str)
-                end_val = float(end_str)
-                num_points = int(abs(end_val - start_val)) + 1
-                if start_val.is_integer() and end_val.is_integer():
-                    value_list = list(range(int(start_val), int(end_val) + 1))
+                if end_str == '':
+                    return [start_val]
                 else:
-                    value_list = np.linspace(start_val, end_val, num=num_points).tolist()
+                    end_val = float(end_str)
+                    num_points = int(abs(end_val - start_val)) + 1
+                    if start_val.is_integer() and end_val.is_integer():
+                        value_list = list(range(int(start_val), int(end_val) + 1))
+                    else:
+                        value_list = np.linspace(start_val, end_val, num=num_points).tolist()
+                    return value_list
             except ValueError:
-                QMessageBox.warning(None, "Invalid Input", f"Invalid range input: {value_string}")
-                value_list = []
+                QMessageBox.warning(None, "Invalid Input", f"Invalid numeric input: {start_str} or {end_str}")
+                return []
         else:
-            value_list = [value_string.strip()]
-        return value_list
+            value_string = value
+            if isinstance(value_string, str):
+                return [value_string]
+            else:
+                return value_string
     
     def all_values_filled(self):
         """Check if all selected Y and X variables have been assigned values."""
         y_values = self.get_input_value(self.selected_y_values)
         x_values = self.get_input_value(self.selected_x_values)
-        
-        # Check if any selected Y or X variable has an empty value
+
         for variable in self.selected_y_values + self.selected_x_values:
-            if variable not in y_values and variable not in x_values:
+            value = y_values.get(variable) or x_values.get(variable)
+            if value is None:
                 return False
-            if not y_values.get(variable, '') and not x_values.get(variable, ''):
-                return False
+            if isinstance(value, dict):
+                if not value.get('start'):
+                    return False
+            else:
+                if not value:
+                    return False
         return True
 
+############# PLOTTING #############
     def should_plot(self):
         """Check if the plot should be generated based on the input data."""
         # Check if any column in Y has multiple values and is numeric
@@ -464,12 +642,7 @@ class PlottingPage(QWidget):
     def plot_probabilities(self):
         """Plot the probabilities and uncertainty."""
         self.load_configuration()
-
-        # Clear previous plot if any
-        if hasattr(self, 'plot_canvas') and self.plot_canvas is not None:
-            self.plot_layout.removeWidget(self.plot_canvas)
-            self.plot_canvas.deleteLater()
-            self.plot_canvas = None
+        self.clear_plot()
 
         # Create a Figure and FigureCanvas
         figure = Figure()
@@ -526,6 +699,7 @@ class PlottingPage(QWidget):
 
         # Draw the canvas
         self.plot_canvas.draw()
+        self.plot = True
 
     def load_configuration(self):
         """Load configuration from JSON file"""
@@ -646,32 +820,34 @@ class PlottingPage(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save plot: {str(e)}")
 
+    def clear_plot(self):
+        """Clear the plot from the canvas."""
+        if self.plot:
+            self.plot_layout.removeWidget(self.plot_canvas)
+            self.plot_canvas.deleteLater()
+            self.plot_canvas = None
+            self.plot = False
+
+############# CLEAR ALL #############
     def clear_all(self):
         """Clears all selections and resets the interface."""
-        confirm = QMessageBox.question(self, "Clear All", f"Are you sure you want to clear all?", 
-                                           QMessageBox.Yes | QMessageBox.No)
-        
-        if confirm == QMessageBox.Yes:
-            self.pr_learnt_combobox.setCurrentIndex(-1)
 
-            self.Y_listwidget.clear()
-            self.X_listwidget.clear()
+        self.pr_learnt_combobox.setCurrentIndex(-1)
 
-            self.variable_selection_frame.hide()
+        self.Y_listwidget.clear()
+        self.X_listwidget.clear()
 
-            self.Y_listwidget.clearSelection()
-            self.X_listwidget.clearSelection()
+        self.variable_selection_frame.hide()
 
-            self.selected_y_values = []
-            self.selected_x_values = []
+        self.Y_listwidget.clearSelection()
+        self.X_listwidget.clearSelection()
 
-            self.clear_values_layout()
+        self.selected_y_values = []
+        self.selected_x_values = []
 
-            self.input_frame.hide()
+        self.clear_values_layout()
 
-            self.update_plot_title()
+        self.input_frame.hide()
 
-            if hasattr(self, 'plot_canvas') and self.plot_canvas is not None:
-                self.plot_layout.removeWidget(self.plot_canvas)
-                self.plot_canvas.deleteLater()
-                self.plot_canvas = None
+        self.update_plot_title()
+        self.clear_plot()
