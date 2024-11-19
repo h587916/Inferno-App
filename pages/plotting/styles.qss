@@ -108,6 +108,7 @@ QFrame#plotFrame {
     border: 1px solid #0288d1;
 }
 
-QFrame#varInputFrame {
+/* QLineEdit Style */
+QLineEdit {
     border: 1px solid #0288d1;
 }

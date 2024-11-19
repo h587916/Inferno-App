@@ -5,8 +5,8 @@ import pandas as pd
 import importlib.resources
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, 
                                 QComboBox, QListWidget, QFileDialog, QAbstractItemView, QFormLayout, QLineEdit, 
-                                QMessageBox, QSizePolicy, QAbstractItemView, QSpacerItem, QDialog)
-from PySide6.QtCore import Qt
+                                QMessageBox, QSizePolicy, QAbstractItemView, QDialog, QSpacerItem)
+from PySide6.QtCore import Qt, QSize
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from r_integration.inferno_functions import run_Pr
@@ -52,6 +52,7 @@ class PlottingPage(QWidget):
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
         scroll_content = QWidget()
         scroll_layout = QHBoxLayout(scroll_content)
@@ -147,12 +148,10 @@ class PlottingPage(QWidget):
         right_layout = QVBoxLayout()
 
         # Fixed-size box for the plot
-        plot_frame = QFrame()
-        plot_frame.setObjectName("plotFrame")
-        plot_frame.setMinimumWidth(600)
-        plot_frame.setMinimumHeight(400)
-        plot_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.plot_layout = QVBoxLayout(plot_frame)
+        self.plot_frame = QFrame()
+        self.plot_frame.setObjectName("plotFrame")
+        self.plot_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.plot_layout = QVBoxLayout(self.plot_frame)
         self.plot_layout.setContentsMargins(0, 20, 0, 10) # left, top, right, bottom
 
         # Set plot title
@@ -161,11 +160,7 @@ class PlottingPage(QWidget):
         self.plot_title.setWordWrap(True)
         self.plot_title.setAlignment(Qt.AlignCenter)
         self.plot_layout.addWidget(self.plot_title)
-
-        # Placeholder for the plot canvas
-        self.plot_canvas_placeholder = QWidget()
-        self.plot_canvas_placeholder.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.plot_layout.addWidget(self.plot_canvas_placeholder)
+        self.plot_layout.addStretch(1)
 
         # Add Configure and Download Buttons
         self.plot_button_layout = QHBoxLayout()
@@ -184,8 +179,9 @@ class PlottingPage(QWidget):
         self.plot_button_layout.addWidget(self.download_plot_button)
 
         # Add the frames to the right layout
-        right_layout.addWidget(plot_frame)
+        right_layout.addWidget(self.plot_frame)
         right_layout.addLayout(self.plot_button_layout)
+        right_layout.addStretch()
 
         # Wrap the right side in a widget
         right_widget = QWidget()
@@ -214,7 +210,13 @@ class PlottingPage(QWidget):
         self.update_plot_title()
 
 
-############# PLOT TITLE ############# 
+    ############# RESIZE EVENT #############
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        new_height = self.height() * 0.7  # Adjust the factor to set the height you want relative to the window
+        self.plot_frame.setMinimumHeight(new_height)
+
+    ############# PLOT TITLE ############# 
     def update_plot_title(self):
         """Update the title based on the selected values and input values."""
         y_values = self.get_input_value(self.selected_y_values)
@@ -251,7 +253,7 @@ class PlottingPage(QWidget):
         self.plot_title.setText(title)
 
 
-############# LEARNT FOLDERS #############
+    ############# LEARNT FOLDERS #############
     def load_result_folders_pr(self):
         """Load learnt folders into the PR learnt combobox from the FileManager."""
         self.pr_learnt_combobox.clear()
@@ -294,7 +296,7 @@ class PlottingPage(QWidget):
                 widget.deleteLater()
         self.variable_values.clear()
 
-############# VARIABLE SELECTION #############
+    ############# VARIABLE SELECTION #############
     def load_metadata_pr(self):
         """Load variates from the metadata.csv file in the selected learnt folder."""
         learnt_folder = self.pr_learnt_combobox.currentText()
@@ -314,6 +316,7 @@ class PlottingPage(QWidget):
             self.Y_listwidget.addItems(variates)
             self.X_listwidget.addItems(variates)
 
+            self.longest_variable = max(variates, key=len, default="")
             self.adjust_list_widget_height(self.Y_listwidget)
             self.adjust_list_widget_height(self.X_listwidget)
 
@@ -431,19 +434,37 @@ class PlottingPage(QWidget):
             self.X_listwidget.hide()
             self.input_frame.hide()
 
-############# INPUT VALUES #############
+    ############# INPUT VALUES #############
     def update_values_layout(self, added_variables, removed_variables):
         """Update the values layout by adding or removing input boxes for variables without resetting existing values."""
+        font_metrics = self.fontMetrics()
+        label_width = font_metrics.horizontalAdvance(f"{self.longest_variable} = ")
+
         for variable in removed_variables:
             if variable in self.input_fields:
                 label, widget = self.input_fields[variable]
-                self.values_layout.removeRow(label)
+                if isinstance(widget, dict): 
+                    start_input = widget['start']
+                    end_input = widget['end']
+                    start_label = widget['start_label']
+                    end_label = widget['end_label']
+                    start_input.deleteLater()
+                    end_input.deleteLater()
+                    start_label.deleteLater()
+                    end_label.deleteLater()
+                else:
+                    widget.deleteLater()
+                label.deleteLater()
                 del self.input_fields[variable]
-                if variable in self.variable_values:
-                    del self.variable_values[variable]
 
         for variable in added_variables:
+            row_layout = QHBoxLayout()
+            row_layout.setContentsMargins(0, 0, 0, 0)
+
             label = QLabel(f"{variable} = ")
+            label.setAlignment(Qt.AlignRight)
+            label.setFixedWidth(label_width)
+
             var_type = self.metadata_dict.get(variable, {}).get("type")
 
             if var_type == "nominal" or (var_type == "ordinal" and "options" in self.metadata_dict[variable]):
@@ -454,19 +475,25 @@ class PlottingPage(QWidget):
                     input_box.setCurrentText(self.variable_values[variable])
                 input_box.currentIndexChanged.connect(self.value_changed)
 
-                self.values_layout.addRow(label, input_box)
+                row_layout.addWidget(label)
+                row_layout.addWidget(input_box)
+                self.values_layout.addRow(row_layout)
                 self.input_fields[variable] = (label, input_box)
 
             elif var_type == "continuous" or (var_type == "ordinal" and "options" not in self.metadata_dict[variable]):
-                layout = QHBoxLayout()
-                layout.setAlignment(Qt.AlignLeft)
+                ranged_layout = QHBoxLayout()
+                ranged_layout.setAlignment(Qt.AlignLeft)
 
+                start_label = QLabel("From ")
                 start_input = QLineEdit()
+                start_input.setFixedSize(70, 30)
                 start_input.setPlaceholderText("Enter value")
                 start_input.textChanged.connect(self.value_changed)
                 start_input.setAlignment(Qt.AlignCenter)
 
+                end_label = QLabel(" To ")
                 end_input = QLineEdit()
+                end_input.setFixedSize(70, 30)
                 end_input.setPlaceholderText("(optional)")
                 end_input.textChanged.connect(self.value_changed)
                 end_input.setAlignment(Qt.AlignCenter)
@@ -477,37 +504,28 @@ class PlottingPage(QWidget):
                     start_input.setText(start_val)
                     end_input.setText(end_val)
 
-                # Wrap each input field in its own frame
-                start_frame = QFrame()
-                start_frame.setFrameShape(QFrame.Box)
-                start_frame.setObjectName("varInputFrame")
-                start_frame.setFixedWidth(70)
-                start_frame.setFixedHeight(30)
-                start_layout = QHBoxLayout(start_frame)
-                start_layout.setContentsMargins(0, 0, 0, 0)
-                start_layout.addWidget(start_input)
+                ranged_layout.addWidget(start_label)
+                ranged_layout.addWidget(start_input)
+                ranged_layout.addWidget(end_label)
+                ranged_layout.addWidget(end_input)
+                ranged_layout.addStretch()
 
-                end_frame = QFrame()
-                end_frame.setFrameShape(QFrame.Box)
-                end_frame.setObjectName("varInputFrame")
-                end_frame.setFixedWidth(70)
-                end_frame.setFixedHeight(30)
-                end_layout = QHBoxLayout(end_frame)
-                end_layout.setContentsMargins(0, 0, 0, 0)
-                end_layout.addWidget(end_input)
-
-                # Add widgets to the layout
-                layout.addWidget(QLabel("From "))
-                layout.addWidget(start_frame)
-                layout.addWidget(QLabel(" To "))
-                layout.addWidget(end_frame)
-                layout.addStretch()
-
-                self.values_layout.addRow(label, layout)
-                self.input_fields[variable] = (label, {'start': start_input, 'end': end_input})
+                row_layout.addWidget(label)
+                row_layout.addLayout(ranged_layout)
+                self.values_layout.addRow(row_layout)
+                self.input_fields[variable] = (label, {'start': start_input, 'end': end_input, 'start_label': start_label, 'end_label': end_label})
 
             else:
                 QMessageBox.warning(None, "Invalid Type", f"Invalid variable type for {variable}: {var_type}")
+
+            self.add_custom_spacing(self.values_layout, 3)
+
+    def add_custom_spacing(self, layout, height):
+        """ Adds custom vertical spacing to a QFormLayout using a transparent QWidget with fixed height. """
+        spacer_widget = QWidget()
+        spacer_widget.setFixedHeight(height)
+        spacer_widget.setStyleSheet("background-color: transparent;")
+        layout.addRow(spacer_widget)
 
     def value_changed(self):
         """Update the stored variable values when the input value changes."""
@@ -536,7 +554,7 @@ class PlottingPage(QWidget):
         self.variable_values.update(input_values)
         return input_values
 
-############# RUN PROBABILITY FUNCTION #############
+    ############# RUN PROBABILITY FUNCTION #############
     def run_pr_function(self):
         """ Run the Pr function and plot the probabilities."""
         if not self.all_values_filled():
@@ -624,7 +642,7 @@ class PlottingPage(QWidget):
                     return False
         return True
 
-############# PLOTTING #############
+    ############# PLOTTING #############
     def should_plot(self):
         """Check if the plot should be generated based on the input data."""
         # Check if any column in Y has multiple values and is numeric
@@ -828,7 +846,7 @@ class PlottingPage(QWidget):
             self.plot_canvas = None
             self.plot = False
 
-############# CLEAR ALL #############
+    ############# CLEAR ALL #############
     def clear_all(self):
         """Clears all selections and resets the interface."""
 
