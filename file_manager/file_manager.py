@@ -1,6 +1,7 @@
 from PySide6.QtCore import QObject, Signal
 import os
 import shutil
+from PySide6.QtWidgets import QMessageBox
 
 HOME_DIR = os.path.expanduser('~')
 APP_DIR = os.path.join(HOME_DIR, '.inferno_app')  # Using a hidden directory
@@ -73,3 +74,14 @@ class FileManager(QObject):
             except Exception as e:
                 print(f"Error deleting file: {e}")
 
+    def rename_file(self, file_name, new_name, folder):
+        """Rename the file in the specified folder and refresh the list."""
+        old_path = os.path.join(folder, file_name)
+        new_path = os.path.join(folder, new_name)
+        if os.path.exists(old_path):
+            try:
+                if os.path.exists(old_path):
+                    os.rename(old_path, new_path)
+                    self.refresh()
+            except Exception as e:
+                print(f"Error renaming file: {e}")

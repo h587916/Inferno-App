@@ -107,10 +107,6 @@ class LearnPage(QWidget):
         self.rename_button.clicked.connect(self.rename_result)
         self.rename_button.setFixedWidth(button_width)
 
-        self.delete_button = QPushButton("Delete")
-        self.delete_button.clicked.connect(self.delete_result)
-        self.delete_button.setFixedWidth(button_width)
-
         self.upload_button = QPushButton("Upload")
         self.upload_button.clicked.connect(self.upload_result)
         self.upload_button.setFixedWidth(button_width)
@@ -119,17 +115,22 @@ class LearnPage(QWidget):
         self.download_button.clicked.connect(self.download_result)
         self.download_button.setFixedWidth(button_width)
 
+        self.delete_button = QPushButton("Delete")
+        self.delete_button.clicked.connect(self.delete_result)
+        self.delete_button.setFixedWidth(button_width)
+        self.delete_button.setObjectName("deleteButton")
+
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(0, 0, 0, 10)  # left, top, right, bottom
         button_layout.setAlignment(Qt.AlignHCenter)
 
         button_layout.addWidget(self.rename_button)
         button_layout.addItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
-        button_layout.addWidget(self.delete_button)
-        button_layout.addItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
         button_layout.addWidget(self.upload_button)
         button_layout.addItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
         button_layout.addWidget(self.download_button)
+        button_layout.addItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
+        button_layout.addWidget(self.delete_button)
 
         results_list_layout.addLayout(button_layout)
 
@@ -188,29 +189,13 @@ class LearnPage(QWidget):
             old_name = selected_item.text()
             new_name, ok = QInputDialog.getText(self, "Rename Folder", "Enter new name:", text=old_name)
             if ok and new_name:
-                old_path = os.path.join(LEARNT_FOLDER, old_name)
                 new_path = os.path.join(LEARNT_FOLDER, new_name)
-                if not os.path.exists(new_path):
-                    os.rename(old_path, new_path)
-                    self.file_manager.refresh()
-                    QMessageBox.information(self, "Success", f"Folder renamed to {new_name}.")
-                else:
+                if os.path.exists(new_path):
                     QMessageBox.warning(self, "Error", "A folder with that name already exists.")
-        else:
-            QMessageBox.warning(self, "Error", "No folder selected.")
-
-    def delete_result(self):
-        """Delete the selected result folder."""
-        selected_item = self.results_list.currentItem()
-        if selected_item:
-            folder_name = selected_item.text()
-            confirm = QMessageBox.question(self, "Delete Folder", f"Are you sure you want to delete the folder '{folder_name}'?", 
-                                           QMessageBox.Yes | QMessageBox.No)
-            if confirm == QMessageBox.Yes:
-                folder_path = os.path.join(LEARNT_FOLDER, folder_name)
-                shutil.rmtree(folder_path)
-                self.file_manager.refresh()
-                QMessageBox.information(self, "Success", f"Folder '{folder_name}' deleted.")
+                    return
+                else:
+                    self.file_manager.rename_file(old_name, new_name, LEARNT_FOLDER)
+                    QMessageBox.information(self, "Success", f"Folder '{old_name}' renamed to '{new_name}'.")
         else:
             QMessageBox.warning(self, "Error", "No folder selected.")
 
@@ -226,6 +211,21 @@ class LearnPage(QWidget):
                 QMessageBox.information(self, "Success", f"Folder '{folder_name}' uploaded.")
             else:
                 QMessageBox.warning(self, "Error", "A folder with that name already exists.")
+
+    def delete_result(self):
+        """Delete the selected result folder."""
+        selected_item = self.results_list.currentItem()
+        if selected_item:
+            folder_name = selected_item.text()
+            confirm = QMessageBox.question(self, "Delete Folder", f"Are you sure you want to delete the folder '{folder_name}'?", 
+                                           QMessageBox.Yes | QMessageBox.No)
+            if confirm == QMessageBox.Yes:
+                folder_path = os.path.join(LEARNT_FOLDER, folder_name)
+                shutil.rmtree(folder_path)
+                self.file_manager.refresh()
+                QMessageBox.information(self, "Success", f"Folder '{folder_name}' deleted.")
+        else:
+            QMessageBox.warning(self, "Error", "No folder selected.")
 
     def download_result(self):
         """Download the selected result folder."""
@@ -306,14 +306,12 @@ class LearnPage(QWidget):
         doc_link.setOpenExternalLinks(True)
 
         save_button = QPushButton("Save")
-        save_button.setFixedWidth(50)
-        save_button.setFixedHeight(30)
-        save_button.setStyleSheet("font-size: 10px;")
+        save_button.setObjectName("saveButton")
         save_button.clicked.connect(lambda: self.save_configuration(dialog))
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(doc_link)
-        button_layout.addStretch()  # Add a stretchable space before the button
+        button_layout.addStretch()
         button_layout.addWidget(save_button)
 
         layout.addRow(button_layout)

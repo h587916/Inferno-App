@@ -2,6 +2,18 @@
 QMessageBox {
     background-color: white;
 }
+QMessageBox QPushButton {
+    background-color: #0288d1;
+    color: white;
+    font-size: 12px;
+    width: 40px;
+    height: 20px;
+    border-radius: 5px;
+    padding: 5px;
+}
+QMessageBox QPushButton:hover {
+    background-color: #0277bd;
+}
 
 /* TableWidget Style */
 QTableWidget {
@@ -40,10 +52,19 @@ QPushButton:hover {
 QPushButton:pressed {
     background-color: #01579b;
 }
+QPushButton#deleteButton {
+    background-color: #d32f2f;
+}
+QPushButton#deleteButton:hover {
+    background-color: #c62828;
+}
+QPushButton#deleteButton:pressed {
+    background-color: #b71c1c;
+}
 
 /* ListWidget Style */
 QListWidget {
-    border: 2px solid black;
+    border: 1px solid black;
     border-radius: 5px;
     padding: 5px;
     background-color: white;
@@ -83,4 +104,21 @@ QComboBox {
 QLabel#title {
     font-size: 24px;
     font-weight: bold;
+}
+
+/* Input Dialog Style */
+QInputDialog {
+    background-color: white;
+}
+QInputDialog QPushButton {
+    background-color: #0288d1;
+    color: rgb(255, 255, 255);
+    font-size: 12px;
+    width: 40px;
+    height: 20px;
+    border-radius: 5px;
+    padding: 5px;
+}
+QInputDialog QPushButton:hover {
+    background-color: #0277bd;
 }

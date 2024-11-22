@@ -3,7 +3,7 @@ import sys
 import pandas as pd
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
                                QComboBox, QGridLayout, QListWidget, QGroupBox, QStackedWidget, QMessageBox, QFileDialog,
-                               QLabel, QSpacerItem, QSizePolicy, QHBoxLayout, QLineEdit)
+                               QLabel, QSpacerItem, QSizePolicy, QHBoxLayout, QLineEdit, QInputDialog)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from r_integration.inferno_functions import build_metadata
@@ -41,7 +41,6 @@ class CustomTableWidget(QTableWidget):
         current_index = self.currentIndex()
         self.model().setData(current_index, editor.text())
 
-
 class MetadataPage(QWidget):
     def __init__(self, file_manager):
         super().__init__()
@@ -49,35 +48,24 @@ class MetadataPage(QWidget):
         self.selected_file_path = None
         self.selected_metadata_path = None
 
-        # Set up the layout for the Metadata page
         layout = QVBoxLayout()
 
-        # Create a horizontal layout for the top navigation buttons (File Management, Metadata Editing)
         self.stacked_widget = QStackedWidget()
         layout.addWidget(self.stacked_widget)
 
-        # Create panels for the Metadata page
         self.create_file_management_panel()
         self.create_metadata_editing_panel()
-
-        # Set default panel to file management panel
         self.stacked_widget.setCurrentWidget(self.file_management_panel)
 
-        # Set the layout for the page
         self.setLayout(layout)
 
-        # Apply the stylesheet
         with importlib.resources.open_text('pages.metadata', 'styles.qss') as f:
             style = f.read()
             self.setStyleSheet(style)
 
-        # Connent to the FileManager signals tp update file lists
         self.file_manager.files_updated.connect(self.load_files)
-
-        # Refresh the file lists when the page is initialized
         self.file_manager.refresh()
 
-      
     def create_file_management_panel(self):
         """Create the panel for managing uploaded files and metadata generation."""
         self.file_management_panel = QWidget()
@@ -90,12 +78,12 @@ class MetadataPage(QWidget):
         self.panel_title.setContentsMargins(0, 0, 0, 0) # left, top, right, bottom
         layout.addWidget(self.panel_title, 0, 0, 1, 2)  # Spanning 2 columns
 
-        # Add vertical spacer between title and group boxes
         vertical_spacer = QSpacerItem(0, 30, QSizePolicy.Minimum, QSizePolicy.Fixed)
         layout.addItem(vertical_spacer, 1, 0, 1, 2)
 
-        # File list group box
-        self.file_list_group = QGroupBox("Uploaded Files")
+        width = 100
+        # File list group box and buttons
+        self.file_list_group = QGroupBox("Uploaded CSV Files")
         self.file_list_group.setAlignment(Qt.AlignHCenter)
         file_list_layout = QVBoxLayout()
         self.file_list_group.setLayout(file_list_layout)
@@ -104,9 +92,33 @@ class MetadataPage(QWidget):
         self.file_list.itemClicked.connect(lambda item: self.file_selected(item, UPLOAD_FOLDER))
         file_list_layout.addWidget(self.file_list)
         file_list_layout.setContentsMargins(20, 40, 10, 10) # left, top, right, bottom
+        file_list_layout.setSpacing(20)
 
-        # Metadata list group box
-        self.metadata_list_group = QGroupBox("Metadata Files")
+        file_button_layout = QHBoxLayout()
+        file_button_layout.setAlignment(Qt.AlignHCenter)
+        file_button_layout.setSpacing(20)
+
+        self.upload_button = QPushButton("Upload")
+        self.upload_button.setFixedWidth(width)
+        self.upload_button.clicked.connect(self.upload_file)
+        file_button_layout.addWidget(self.upload_button)
+
+        self.generate_button = QPushButton("Generate")
+        self.generate_button.setObjectName("generateButton")
+        self.generate_button.setFixedWidth(width)
+        self.generate_button.clicked.connect(self.process_file)
+        file_button_layout.addWidget(self.generate_button)
+
+        self.delete_file_button = QPushButton("Delete")
+        self.delete_file_button.setObjectName("deleteButton")
+        self.delete_file_button.setFixedWidth(width)
+        self.delete_file_button.clicked.connect(lambda: self.delete_file(self.file_list.currentItem(), UPLOAD_FOLDER))
+        file_button_layout.addWidget(self.delete_file_button)
+
+        file_list_layout.addLayout(file_button_layout)
+
+        # Metadata list group box and buttons
+        self.metadata_list_group = QGroupBox("Generated Metadata Files")
         self.metadata_list_group.setAlignment(Qt.AlignHCenter)
         metadata_list_layout = QVBoxLayout()
         self.metadata_list_group.setLayout(metadata_list_layout)
@@ -115,69 +127,39 @@ class MetadataPage(QWidget):
         self.metadata_list.itemClicked.connect(lambda item: self.file_selected(item, METADATA_FOLDER))
         metadata_list_layout.addWidget(self.metadata_list)
         metadata_list_layout.setContentsMargins(10, 40, 20, 10) # left, top, right, bottom
+        metadata_list_layout.setSpacing(20)
 
-        # Buttons
-        width = 250
+        meta_button_layout = QHBoxLayout()
+        meta_button_layout.setAlignment(Qt.AlignHCenter)
+        meta_button_layout.setSpacing(20)
 
-        self.upload_button = QPushButton("Upload New CSV File")
-        self.upload_button.setFixedWidth(width)
-        self.upload_button.clicked.connect(self.upload_file)
-
-        self.modify_button = QPushButton("Modify Metadata File")
+        self.modify_button = QPushButton("Modify")
         self.modify_button.setFixedWidth(width)
         self.modify_button.clicked.connect(self.modify_metadata)
+        meta_button_layout.addWidget(self.modify_button)
 
-        self.generate_button = QPushButton("Generate Metadata File")
-        self.generate_button.setFixedWidth(width)
-        self.generate_button.clicked.connect(self.process_file)
-
-        self.delete_metadata_button = QPushButton("Delete Metadata File")
+        self.rename_button = QPushButton("Rename")
+        self.rename_button.setFixedWidth(width)
+        self.rename_button.clicked.connect(self.rename_metadata)
+        meta_button_layout.addWidget(self.rename_button)
+        
+        self.delete_metadata_button = QPushButton("Delete")
+        self.delete_metadata_button.setObjectName("deleteButton")
         self.delete_metadata_button.setFixedWidth(width)
         self.delete_metadata_button.clicked.connect(lambda: self.delete_file(self.metadata_list.currentItem(), METADATA_FOLDER))
+        meta_button_layout.addWidget(self.delete_metadata_button)
 
-        self.delete_file_button = QPushButton("Delete Uploaded File")
-        self.delete_file_button.setFixedWidth(width)
-        self.delete_file_button.clicked.connect(lambda: self.delete_file(self.file_list.currentItem(), UPLOAD_FOLDER))
-
-        # Create a grid layout for the buttons
-        buttons_layout = QGridLayout()
-        buttons_layout.setHorizontalSpacing(0)
-        buttons_layout.setVerticalSpacing(10)
-
-        # First row
-        buttons_layout.addWidget(self.upload_button, 0, 0, alignment=Qt.AlignHCenter)
-        buttons_layout.addWidget(self.modify_button, 0, 1, alignment=Qt.AlignHCenter)
-
-        # Second row
-        buttons_layout.addWidget(self.generate_button, 1, 0, alignment=Qt.AlignHCenter)
-        buttons_layout.addWidget(self.delete_metadata_button, 1, 1, alignment=Qt.AlignHCenter)
-
-        # Third row
-        buttons_layout.addWidget(self.delete_file_button, 2, 0, alignment=Qt.AlignHCenter)
-        # Optional: Add a placeholder to maintain alignment
-        buttons_layout.addItem(QSpacerItem(0, 0), 2, 1)
+        metadata_list_layout.addLayout(meta_button_layout)
 
         # Adjusted positions for group boxes and buttons layout
         layout.addWidget(self.file_list_group, 2, 0)
         layout.addWidget(self.metadata_list_group, 2, 1)
-        layout.addLayout(buttons_layout, 3, 0, 1, 2)  # Spanning 2 columns
 
-        # Add vertical spacer at the bottom
         bottom_spacer = QSpacerItem(0, 20, QSizePolicy.Minimum, QSizePolicy.Fixed)
-        layout.addItem(bottom_spacer, 4, 0, 1, 2)  # Spanning 2 columns
-
-        # Set row stretches
-        layout.setRowStretch(0, 0)  # Title does not stretch
-        layout.setRowStretch(1, 0)  # Spacer between title and group boxes does not stretch
-        layout.setRowStretch(2, 1)  # Group boxes stretch
-        layout.setRowStretch(3, 0)  # Buttons do not stretch
-        layout.setRowStretch(4, 0)  # Bottom spacer does not stretch
+        layout.addItem(bottom_spacer, 4, 0, 1, 2)
 
         self.file_management_panel.setLayout(layout)
-
-        # Add the file management panel to the stacked widget
         self.stacked_widget.addWidget(self.file_management_panel)
-
 
     def create_metadata_editing_panel(self):
         """Create the panel for modifying the metadata file."""
@@ -196,10 +178,11 @@ class MetadataPage(QWidget):
         layout.addWidget(self.table_widget)
 
         # Create a horizontal layout for the buttons
-        button_width = 200
+        button_width = 150
         button_layout = QHBoxLayout()
         button_layout.setAlignment(Qt.AlignHCenter)
         button_layout.setContentsMargins(0, 10, 0, 0) # left, top, right, bottom
+        button_layout.setSpacing(20)
 
         # Button to save the metadata file
         self.save_button = QPushButton("Save Changes")
@@ -209,6 +192,7 @@ class MetadataPage(QWidget):
 
         # Button to go back to the file management panel
         self.back_button = QPushButton("Discard Changes")
+        self.back_button.setObjectName("deleteButton")
         self.back_button.clicked.connect(self.go_back)
         self.back_button.setFixedWidth(button_width)
         button_layout.addWidget(self.back_button)
@@ -220,8 +204,9 @@ class MetadataPage(QWidget):
         # Add the metadata editing panel to the stacked widget
         self.stacked_widget.addWidget(self.metadata_editing_panel)
 
-    ### HELPER FUNCTIONS ###
-    
+
+    ####### File Management Panel Functions #######    
+
     def load_files(self):
         """Load the list of uploaded files from the FileManager."""
         self.file_list.clear()
@@ -248,11 +233,11 @@ class MetadataPage(QWidget):
         """Delete the selected uploaded file using the FileManager."""
         try:
             file_name = item.text()
-            reply = QMessageBox.question(self, "Delete File", f"Are you sure you want to delete {file_name}?")
+            reply = QMessageBox.question(self, "Delete File", f"Are you sure you want to delete '{file_name}'?")
             if reply == QMessageBox.Yes:
                 self.file_manager.delete_file(file_name, folder)
         except AttributeError:
-             QMessageBox.warning(self, "No File Selected", "Please select a file to delete.")
+             QMessageBox.warning(self, "Error", "Please select a file to delete.")
 
     def file_selected(self, item, folder):
         """Handle selecting a file from the uploaded files list."""
@@ -278,7 +263,7 @@ class MetadataPage(QWidget):
 
             QMessageBox.information(self, "Success", "Metadata generated successfully.")
         else:
-            QMessageBox.warning(self, "No File Selected", "Please select a file to generate metadata.")
+            QMessageBox.warning(self, "Error", "Please select a file to generate metadata.")
 
     def modify_metadata(self):
         """Display the metadata editing panel to modify an existing metadata file."""
@@ -286,16 +271,35 @@ class MetadataPage(QWidget):
             self.display_metadata(self.selected_metadata_path)
             self.stacked_widget.setCurrentWidget(self.metadata_editing_panel)
         else:
-            QMessageBox.warning(self, "No Metadata Selected", "Please select a metadata file to modify.")
+            QMessageBox.warning(self, "Error", "Please select a metadata file to modify.")
+
+    def rename_metadata(self):
+        """Rename the selected metadata file."""
+        item = self.metadata_list.currentItem()
+        if item:
+            old_name = item.text()
+            new_name, ok = QInputDialog.getText(self, "Rename File", "Enter new name:", text=old_name)
+            if ok and new_name:
+                if not new_name.endswith('.csv'):
+                    QMessageBox.warning(self, "Error", "Metadata file names must end with '.csv'.")
+                    return
+                new_path = os.path.join(METADATA_FOLDER, new_name)
+                if os.path.exists(new_path):
+                    QMessageBox.warning(self, "Error", "A file with that name already exists.")
+                    return
+                else:
+                    self.file_manager.rename_file(old_name, new_name, METADATA_FOLDER)
+                    QMessageBox.information(self, "Success", "Metadata file renamed successfully.")
+        else:
+            QMessageBox.warning(self, "Error", "No file selected to rename.")
+
+    ####### Metadata Editing Panel Functions #######
 
     def display_metadata(self, metadata_file_path):
         """Display metadata in the table widget with tooltips."""
-       
-        # Read the metadata file into a DataFrame
         metadata_df = pd.read_csv(metadata_file_path)
         metadata_df = metadata_df.fillna('')
         
-        # Set row and column count based on DataFrame
         self.table_widget.setRowCount(len(metadata_df))
         self.table_widget.setColumnCount(len(metadata_df.columns))
         self.table_widget.setHorizontalHeaderLabels(metadata_df.columns)
@@ -303,15 +307,12 @@ class MetadataPage(QWidget):
         header_font = QFont()
         header_font.setPointSize(16)
 
-        # Create a dictionary for header tooltips
         header_tooltip_dict = {column_name: header_tooltips.get(column_name, '') for column_name in metadata_df.columns}
 
-        # Set tooltips for headers
         for i, column_name in enumerate(metadata_df.columns):
             header_item = self.table_widget.horizontalHeaderItem(i)
             header_item.setFont(header_font)
             header_item.setToolTip(header_tooltip_dict[column_name])
-
 
         row_height = 40
         for row in range(self.table_widget.rowCount()):
@@ -320,38 +321,31 @@ class MetadataPage(QWidget):
         type_column = metadata_df.columns.get_loc("type")
         self.table_widget.setColumnWidth(type_column, 130)
 
-        # Create a dictionary for combo box item tooltips
         combobox_tooltip_dict = {
             "nominal": combobox_item_tooltips.get("nominal", ''),
             "ordinal": combobox_item_tooltips.get("ordinal", ''),
             "continuous": combobox_item_tooltips.get("continuous", '')
         }
 
-        # Fill the table with data from the DataFrame and set tooltips for the cells
         for i, row in metadata_df.iterrows():
             for j, value in enumerate(row):
                 column_name = metadata_df.columns[j]
 
-                # If the column is "type", use a combo box
                 if column_name == "type":
                     combo = QComboBox()
                     combo.addItems(["nominal", "ordinal", "continuous"])
                     combo.setCurrentText(str(value))
 
-                    # Set tooltips for the combo box items
                     for index in range(combo.count()):
                         item_text = combo.itemText(index)
                         combo.setItemData(index, combobox_tooltip_dict[item_text], Qt.ToolTipRole)
 
                     self.table_widget.setCellWidget(i, j, combo)
                 else:
-                    # Set regular text items for other columns
                     item = QTableWidgetItem(str(value))
                     self.table_widget.setItem(i, j, item)
 
-        # Update the title of the metadata editing panel
         self.meta_title.setText(f"Editing Metadata File: {os.path.basename(metadata_file_path)}")
-
 
     def save_metadata_file(self):
         """Save the modified metadata file."""
@@ -378,4 +372,6 @@ class MetadataPage(QWidget):
 
     def go_back(self):
         """Return to the file management panel."""
-        self.stacked_widget.setCurrentWidget(self.file_management_panel)
+        reply = QMessageBox.question(self, "Discard Changes", "Are you sure you want to discard the changes?")
+        if reply == QMessageBox.Yes:
+            self.stacked_widget.setCurrentWidget(self.file_management_panel)

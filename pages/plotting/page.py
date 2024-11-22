@@ -549,7 +549,7 @@ class PlottingPage(QWidget):
                 self.input_fields[variable] = (label, {'start': start_input, 'end': end_input, 'start_label': start_label, 'end_label': end_label})
 
             else:
-                QMessageBox.warning(None, "Invalid Type", f"Invalid variable type for {variable}: {var_type}")
+                QMessageBox.warning(None, "Error", f"Invalid variable type for {variable}: {var_type}")
 
             self.add_custom_spacing(self.values_layout, 3)
     
@@ -588,7 +588,7 @@ class PlottingPage(QWidget):
                     if isinstance(widget, QComboBox):
                         input_values[variable] = widget.currentText()
                     else:
-                        QMessageBox.warning(None, "Invalid Input", f"Invalid input field for {variable}")
+                        QMessageBox.warning(None, "Error", f"Invalid input field for {variable}")
         self.variable_values.update(input_values)
         return input_values
 
@@ -596,7 +596,7 @@ class PlottingPage(QWidget):
     def run_pr_function(self):
         """ Run the Pr function and plot the probabilities."""
         if not self.all_values_filled():
-            QMessageBox.warning(self, "Incomplete Input", "Please fill out all value-fields for the selected variables.")
+            QMessageBox.warning(self, "Error", "Please fill out all value-fields for the selected variables.")
             return
         
         y_values = self.get_input_value(self.selected_y_values)
@@ -619,7 +619,7 @@ class PlottingPage(QWidget):
                 self.probabilities_values, self.probabilities_quantiles = run_Pr(self.Y, learnt_dir, self.X)
                 self.plot_probabilities()
             else:
-                QMessageBox.warning(None, "No Plot", "No plot generated. No numeric variable with multiple values to plot.")
+                QMessageBox.warning(None, "Error", "No plot generated. No numeric variable with multiple values to plot.")
         
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to run the Pr function: {str(e)}")
@@ -642,7 +642,7 @@ class PlottingPage(QWidget):
                         value_list = np.linspace(start_val, end_val, num=num_points).tolist()
                     return value_list
             except ValueError:
-                QMessageBox.warning(None, "Invalid Input", f"Invalid numeric input: {start_str} or {end_str}")
+                QMessageBox.warning(None, "Error", f"Invalid numeric input: {start_str} or {end_str}")
                 return []
         else:
             value_string = value
@@ -684,7 +684,7 @@ class PlottingPage(QWidget):
                 try:
                     start_val = float(start_str)
                 except ValueError:
-                    QMessageBox.warning(None, "Invalid Input", f"Invalid numeric input for start value in {var_name}: {start_str}")
+                    QMessageBox.warning(None, "Error", f"Invalid numeric input for start value in {var_name}: {start_str}")
                     return None
                 
                 if not end_str:
@@ -693,11 +693,11 @@ class PlottingPage(QWidget):
                     try:
                         end_val = float(end_str)
                     except ValueError:
-                        QMessageBox.warning(None, "Invalid Input", f"Invalid numeric input for end value in {var_name}: {end_str}")
+                        QMessageBox.warning(None, "Error", f"Invalid numeric input for end value in {var_name}: {end_str}")
                         return None
                     
                     if end_val < start_val:
-                        QMessageBox.warning(None, "Invalid Input", f"End value must be greater than start value for {var_name}")
+                        QMessageBox.warning(None, "Error", f"End value must be greater than start value for {var_name}")
                         return
                     
                     num_points = int(abs(end_val - start_val)) + 1
@@ -848,10 +848,14 @@ class PlottingPage(QWidget):
         layout.addRow("X-axis Label:", self.xlabel_edit)
         layout.addRow("Y-axis Label:", self.ylabel_edit)
 
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
         save_button = QPushButton("Save")
+        save_button.setObjectName("saveButton")
         save_button.clicked.connect(lambda: self.save_configuration(dialog))
+        button_layout.addWidget(save_button)
 
-        layout.addWidget(save_button)
+        layout.addRow(button_layout)
         dialog.setLayout(layout)
         dialog.exec_()
 
@@ -892,7 +896,7 @@ class PlottingPage(QWidget):
 
     def download_plot(self):
         if self.plot_canvas is None:
-            QMessageBox.warning(self, "No Plot", "There is no plot to save.")
+            QMessageBox.warning(self, "Error", "There is no plot to download.")
             return
 
         options = QFileDialog.Options()
