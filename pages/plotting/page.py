@@ -129,6 +129,26 @@ class PlottingPage(QWidget):
 
         left_layout.addWidget(self.plot_variable_frame, alignment=Qt.AlignTop)
 
+        # Should a categorical X-variable be plotted multiple times?
+        self.categorical_variable_frame = QFrame()
+        self.categorical_variable_frame.setObjectName("categoricalVariableFrame")
+        self.categorical_variable_frame.hide()
+        categorical_variable_layout = QHBoxLayout(self.categorical_variable_frame)
+        categorical_variable_layout.setContentsMargins(0, 0, 0, 0)
+        categorical_variable_layout.setSpacing(5)
+
+        categorical_variable_label = QLabel("     Plot a categorical variable multiple times?")
+        self.categorical_variable_combobox = CustomComboBox()
+        self.categorical_variable_combobox.currentIndexChanged.connect(self.on_categorical_variable_selected)
+
+        categorical_variable_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.categorical_variable_combobox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        categorical_variable_layout.addWidget(categorical_variable_label)
+        categorical_variable_layout.addWidget(self.categorical_variable_combobox)
+
+        left_layout.addWidget(self.categorical_variable_frame, alignment=Qt.AlignTop)
+
         # Input Values Frame
         self.input_frame = QFrame()
         self.input_frame.setObjectName("inputFrame")
@@ -396,6 +416,7 @@ class PlottingPage(QWidget):
         self.selected_x_values = new_selected_x_values
 
         self.update_selected_variables(added_variables, removed_variables)
+        self.update_categorical_variable_combobox()
 
     def update_selected_variables(self, added_variables, removed_variables):
         """Update the selected variables and input fields based on the added and removed variables."""
@@ -422,6 +443,28 @@ class PlottingPage(QWidget):
         self.update_X_list_visibility()
         self.update_plot_title()
         self.clear_plot()
+
+    def update_categorical_variable_combobox(self):
+        """Update the categorical variable combobox based on selected X variables."""
+        categorical_variables = []
+
+        for variable in self.selected_x_values:
+            var_metadata = self.metadata_dict.get(variable, {})
+            var_type = var_metadata.get("type")
+            if var_type == "nominal" or (var_type == "ordinal" and "options" in var_metadata):
+                categorical_variables.append(variable)
+
+        if categorical_variables:
+            self.categorical_variable_combobox.blockSignals(True)
+            self.categorical_variable_combobox.clear()
+            self.categorical_variable_combobox.addItem("No")
+            self.categorical_variable_combobox.addItems(categorical_variables)
+            self.categorical_variable_combobox.setCurrentIndex(0)
+            self.categorical_variable_combobox.blockSignals(False)
+            self.categorical_variable_frame.show()
+        else:
+            self.categorical_variable_combobox.clear()
+            self.categorical_variable_frame.hide()
 
     def update_disabled_items(self):
         """Disable selected items in the opposite list to prevent cross-selection."""
@@ -464,6 +507,11 @@ class PlottingPage(QWidget):
                 self.update_values_layout_pr()
                 self.input_frame.show()
 
+    def on_categorical_variable_selected(self, index):
+        self.clear_input_layout()
+        self.update_values_layout_pr()
+        self.input_frame.show()
+
     def clear_input_layout(self):
         """Clear and hide the values layout."""
         while self.values_layout.count():
@@ -485,6 +533,9 @@ class PlottingPage(QWidget):
         label_width = font_metrics.horizontalAdvance(f"{longest_variable} = ")
 
         plot_variable = self.plot_variable_combobox.currentText()
+        categorical_variable = self.categorical_variable_combobox.currentText()
+        if categorical_variable == "No":
+            categorical_variable = None
 
         for variable in variables:
             row_layout = QHBoxLayout()
@@ -496,7 +547,25 @@ class PlottingPage(QWidget):
 
             var_type = self.metadata_dict.get(variable, {}).get("type")
 
-            if var_type == "nominal" or (var_type == "ordinal" and "options" in self.metadata_dict[variable]):
+            if variable == categorical_variable:
+                options = self.metadata_dict[variable].get("options", [])
+                list_widget = QListWidget()
+                list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
+                list_widget.addItems(options)
+                if variable in self.variable_values:
+                    selected_options = self.variable_values[variable]
+                    for i in range(list_widget.count()):
+                        item = list_widget.item(i)
+                        if item.text() in selected_options:
+                            item.setSelected(True)
+                list_widget.itemSelectionChanged.connect(self.value_changed)
+
+                row_layout.addWidget(label)
+                row_layout.addWidget(list_widget)
+                self.values_layout.addRow(row_layout)
+                self.input_fields[variable] = (label, list_widget)
+
+            elif var_type == "nominal" or (var_type == "ordinal" and "options" in self.metadata_dict[variable]):
                 options = self.metadata_dict[variable].get("options", [])
                 input_box = QComboBox()
                 input_box.addItems(options)
@@ -584,6 +653,10 @@ class PlottingPage(QWidget):
                     start_value = start_input.text()
                     end_value = end_input.text()
                     input_values[variable] = {'start': start_value, 'end': end_value}
+                elif isinstance(widget, QListWidget):
+                    selected_items = widget.selectedItems()
+                    values = [item.text() for item in selected_items]
+                    input_values[variable] = values
                 else:
                     if isinstance(widget, QComboBox):
                         input_values[variable] = widget.currentText()
@@ -656,6 +729,9 @@ class PlottingPage(QWidget):
         y_values = self.get_input_value(self.selected_y_values)
         x_values = self.get_input_value(self.selected_x_values)
         plot_variable = self.plot_variable_combobox.currentText()
+        categorical_variable = self.categorical_variable_combobox.currentText()
+        if categorical_variable == "No":
+            categorical_variable = None
 
         for variable in self.selected_y_values + self.selected_x_values:
             value = y_values.get(variable) or x_values.get(variable)
@@ -667,6 +743,9 @@ class PlottingPage(QWidget):
                 if not start:
                     return False
                 if variable == plot_variable and not end:
+                    return False
+            elif isinstance(value, list):
+                if not value and variable == categorical_variable:
                     return False
             else:
                 if not value:
@@ -705,6 +784,11 @@ class PlottingPage(QWidget):
                         variable_value = list(range(int(start_val), int(end_val) + 1))
                     else:
                         variable_value = np.linspace(start_val, end_val, num=num_points).tolist()
+            elif isinstance(value, list):
+                if not value:
+                    QMessageBox.warning(None, "Error", f"No values selected for {var_name}")
+                    return None
+                variable_value = value
             else:
                 value_string = value
                 if isinstance(value_string, str):
@@ -718,17 +802,18 @@ class PlottingPage(QWidget):
     ############# PLOTTING #############
     def should_plot(self):
         """Check if the plot should be generated based on the input data."""
-        # Check if any column in Y has multiple values and is numeric
-        for column in self.Y.columns:
-            if len(self.Y[column].unique()) > 1 and pd.api.types.is_numeric_dtype(self.Y[column]):
+        # Check if any column in Y or X has multiple values and is numeric
+        for df in [self.Y, self.X]:
+            for column in df.columns:
+                if len(df[column].unique()) > 1 and pd.api.types.is_numeric_dtype(df[column]):
+                    return True
+        # Additionally, check if categorical variable with multiple values is selected
+        categorical_variable = self.categorical_variable_combobox.currentText()
+        if categorical_variable != "No" and categorical_variable in self.X.columns:
+            if len(self.X[categorical_variable].unique()) > 1:
                 return True
-        
-        # Check if any column in X has multiple values and is numeric
-        for column in self.X.columns:
-            if len(self.X[column].unique()) > 1 and pd.api.types.is_numeric_dtype(self.X[column]):
-                return True
-        
         return False
+
 
     def plot_probabilities(self):
         """Plot the probabilities and uncertainty."""
@@ -742,45 +827,47 @@ class PlottingPage(QWidget):
         self.plot_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.plot_layout.insertWidget(1, self.plot_canvas)
 
+        # Extract the variable to plot against
+        plot_variable = self.plot_variable_combobox.currentText()
+        categorical_variable = self.categorical_variable_combobox.currentText()
+        if categorical_variable == "No":
+            categorical_variable = None
+
         # Convert to numpy arrays
         probabilities_values = np.array(self.probabilities_values).flatten()
         probabilities_quantiles = np.array(self.probabilities_quantiles)
 
-        # Ensure quantiles array is correctly shaped for plotting
-        if probabilities_quantiles.ndim == 3:
-            lower_quantiles = probabilities_quantiles[:, 0, 0]
-            upper_quantiles = probabilities_quantiles[:, 0, -1]
-        elif probabilities_quantiles.ndim == 2 and probabilities_quantiles.shape[1] >= 2:
-            lower_quantiles = probabilities_quantiles[:, 0]
-            upper_quantiles = probabilities_quantiles[:, -1]
+        # Handle plotting based on whether a categorical variable is selected
+        if categorical_variable and categorical_variable in self.X.columns:
+            unique_categories = self.X[categorical_variable].unique()
+            for category in unique_categories:
+                mask = self.X[categorical_variable] == category
+                x_values = self.Y[plot_variable][mask]
+                y_values = probabilities_values[mask]
+
+                # Plot each category separately
+                ax.plot(
+                    x_values,
+                    y_values,
+                    label=f"{categorical_variable} = {category}"
+                )
         else:
-            lower_quantiles = np.zeros(self.Y.shape[0])
-            upper_quantiles = np.zeros(self.Y.shape[0])
+            x_values = self.Y[plot_variable]
+            y_values = probabilities_values
 
-        # Plot the quantiles
-        y_column = self.Y.columns[0]
-
-        ax.fill_between(
-            self.Y[y_column], 
-            lower_quantiles, 
-            upper_quantiles,
-            color=self.color_uncertainty_area, 
-            alpha=self.alpha_uncertainty_area, 
-            edgecolor='darkblue', 
-            linewidth=self.width_uncertainty_area,
-            label='Uncertainty'
-        )
+            # Plot the main probability curve
+            ax.plot(
+                x_values,
+                y_values,
+                color=self.color_probability_curve,
+                linewidth=self.width_probability_curve,
+                linestyle='-',
+                label='Probability'
+            )
 
         ax.set_ylim(0, None)
-        ax.set_xlabel(y_column)
+        ax.set_xlabel(plot_variable)
         ax.set_ylabel('Probability')
-
-        # Overlay the probability distribution curve
-        spl = make_interp_spline(self.Y[y_column], probabilities_values, k=3)
-        Y_smooth = np.linspace(self.Y[y_column].min(), self.Y[y_column].max(), 500)
-        prob_smooth = spl(Y_smooth)
-
-        ax.plot(Y_smooth, prob_smooth, color=self.color_probability_curve, linewidth=self.width_probability_curve, linestyle='-', label='Probability')
 
         # Add the 0-change line
         ax.axvline(x=0, color=self.color_zero_change_line, linestyle='--', linewidth=self.width_zero_change_line, label='0-change Line')
@@ -791,6 +878,7 @@ class PlottingPage(QWidget):
         # Draw the canvas
         self.plot_canvas.draw()
         self.plot = True
+
 
     def load_configuration(self):
         """Load configuration from JSON file"""
