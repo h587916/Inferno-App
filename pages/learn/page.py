@@ -21,6 +21,7 @@ class LearnPage(QWidget):
     def __init__(self, file_manager):
         super().__init__()
         self.file_manager = file_manager
+        self.load_configuration()
         layout = QGridLayout()
         button_width = 100
 
@@ -121,7 +122,7 @@ class LearnPage(QWidget):
         self.delete_button.setObjectName("deleteButton")
 
         button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(0, 0, 0, 10)  # left, top, right, bottom
+        button_layout.setContentsMargins(40, 0, 40, 10)  # left, top, right, bottom
         button_layout.setAlignment(Qt.AlignHCenter)
 
         button_layout.addWidget(self.rename_button)
@@ -277,8 +278,6 @@ class LearnPage(QWidget):
 
     def configure_run_learn(self):
         """Open a dialog to configure run_learn parameters."""
-        self.load_configuration()
-
         dialog = QDialog(self)
         dialog.setFixedWidth(270)
         dialog.setFixedHeight(170)
@@ -343,6 +342,8 @@ class LearnPage(QWidget):
 
     def run_learn_function(self):
         """Run the learn function with the selected CSV and Metadata files."""
+        self.load_configuration()
+
         csv_file = self.csv_combobox.currentText()
         metadata_file = self.metadata_combobox.currentText()
 
@@ -373,7 +374,16 @@ class LearnPage(QWidget):
         metadata_file_path = os.path.join(METADATA_FOLDER, metadata_file)
 
         # Run the learn() function with the selected files
-        result = run_learn(metadatafile=metadata_file_path, datafile=csv_file_path, outputdir=outputdir, parallel=self.parallel, nsamples=self.nsamples, nchains=self.nchains, maxhours=self.maxhours, seed=self.seed)
+        result = run_learn(
+            metadatafile=metadata_file_path, 
+            datafile=csv_file_path, 
+            outputdir=outputdir, 
+            parallel=self.parallel, 
+            nsamples=self.nsamples, 
+            nchains=self.nchains, 
+            maxhours=self.maxhours, 
+            seed=self.seed
+        )
 
         # Close the running message box after completion
         running_message.done(0)
