@@ -3,10 +3,11 @@ import json
 import numpy as np
 import pandas as pd
 import importlib.resources
+from itertools import product
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, 
                                 QComboBox, QListWidget, QFileDialog, QAbstractItemView, QFormLayout, QLineEdit, 
                                 QMessageBox, QSizePolicy, QAbstractItemView, QDialog, QSpacerItem)
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from r_integration.inferno_functions import run_Pr
@@ -137,7 +138,7 @@ class PlottingPage(QWidget):
         categorical_variable_layout.setContentsMargins(0, 0, 0, 0)
         categorical_variable_layout.setSpacing(5)
 
-        categorical_variable_label = QLabel("     Plot a categorical variable multiple times?")
+        categorical_variable_label = QLabel("Plot a categorical X-variable with different values?")
         self.categorical_variable_combobox = CustomComboBox()
         self.categorical_variable_combobox.currentIndexChanged.connect(self.on_categorical_variable_selected)
 
@@ -148,12 +149,17 @@ class PlottingPage(QWidget):
         categorical_variable_layout.addWidget(self.categorical_variable_combobox)
 
         left_layout.addWidget(self.categorical_variable_frame, alignment=Qt.AlignTop)
+        left_layout.addSpacerItem(QSpacerItem(0, 20, QSizePolicy.Fixed, QSizePolicy.Fixed))
 
         # Input Values Frame
         self.input_frame = QFrame()
         self.input_frame.setObjectName("inputFrame")
         self.input_frame.hide()
         input_layout = QVBoxLayout(self.input_frame)
+
+        input_label = QLabel("Provide values for the selected variables:")
+        input_label.setObjectName("inputLabel")
+        input_layout.addWidget(input_label)
 
         values_widget = QWidget()
         self.values_layout = QFormLayout()
@@ -263,21 +269,8 @@ class PlottingPage(QWidget):
         x_values = self.get_input_value(self.selected_x_values)
         data = self.pr_learnt_combobox.currentText()
 
-        def format_value(value):
-            if isinstance(value, dict):
-                start = value.get('start', '')
-                end = value.get('end', '')
-                if start and end:
-                    return f"{start}:{end}"
-                elif start:
-                    return f"{start}"
-                else:
-                    return ''
-            else:
-                return value or ''
-
-        y_labels = ", ".join([f"{label}={format_value(y_values.get(label, '')) or 'y'}" for label in self.selected_y_values])
-        x_labels = ", ".join([f"{label}={format_value(x_values.get(label, '')) or 'x'}" for label in self.selected_x_values])
+        y_labels = ", ".join([f"{label}={self.format_value(y_values.get(label, '')) or 'y'}" for label in self.selected_y_values])
+        x_labels = ", ".join([f"{label}={self.format_value(x_values.get(label, '')) or 'x'}" for label in self.selected_x_values])
 
         if y_labels and x_labels:
             title = f"P({y_labels} | {x_labels}, {data})"
@@ -292,6 +285,20 @@ class PlottingPage(QWidget):
 
         self.plot_title.setText(title)
 
+    def format_value(self, value):
+        if isinstance(value, dict):
+            start = value.get('start', '')
+            end = value.get('end', '')
+            if start and end:
+                return f"{start}:{end}"
+            elif start:
+                return f"{start}"
+            else:
+                return ''
+        elif isinstance(value, list):
+            return f"[{', '.join(value)}]"
+        else:
+            return value or ''
 
     ############# LEARNT FOLDERS #############
     def load_result_folders_pr(self):
@@ -416,7 +423,6 @@ class PlottingPage(QWidget):
         self.selected_x_values = new_selected_x_values
 
         self.update_selected_variables(added_variables, removed_variables)
-        self.update_categorical_variable_combobox()
 
     def update_selected_variables(self, added_variables, removed_variables):
         """Update the selected variables and input fields based on the added and removed variables."""
@@ -446,6 +452,11 @@ class PlottingPage(QWidget):
 
     def update_categorical_variable_combobox(self):
         """Update the categorical variable combobox based on selected X variables."""
+        if self.plot_variable_combobox.currentIndex() < 0:
+            self.categorical_variable_combobox.clear()
+            self.categorical_variable_frame.hide()
+            return 
+        
         categorical_variables = []
 
         for variable in self.selected_x_values:
@@ -468,18 +479,14 @@ class PlottingPage(QWidget):
 
     def update_disabled_items(self):
         """Disable selected items in the opposite list to prevent cross-selection."""
-        # Disable Y-selected items in the X list
-        for i in range(self.X_listwidget.count()):
-            item = self.X_listwidget.item(i)
-            item.setFlags(item.flags() | Qt.ItemIsEnabled)
-            if item.text() in self.selected_y_values:
-                item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
+        self.disable_item(self.Y_listwidget, self.selected_x_values)
+        self.disable_item(self.X_listwidget, self.selected_y_values)
 
-        # Disable X-selected items in the Y list
-        for i in range(self.Y_listwidget.count()):
-            item = self.Y_listwidget.item(i)
+    def disable_item(self, listwidget, selected_values):
+        for i in range(listwidget.count()):
+            item = listwidget.item(i)
             item.setFlags(item.flags() | Qt.ItemIsEnabled)
-            if item.text() in self.selected_x_values:
+            if item.text() in selected_values:
                 item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
 
     def update_X_list_visibility(self):
@@ -506,6 +513,9 @@ class PlottingPage(QWidget):
             else:
                 self.update_values_layout_pr()
                 self.input_frame.show()
+        else:
+            self.input_frame.hide()
+        self.update_categorical_variable_combobox()
 
     def on_categorical_variable_selected(self, index):
         self.clear_input_layout()
@@ -559,6 +569,9 @@ class PlottingPage(QWidget):
                         if item.text() in selected_options:
                             item.setSelected(True)
                 list_widget.itemSelectionChanged.connect(self.value_changed)
+                self.adjust_list_widget_height(list_widget)
+                list_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+                list_widget.setObjectName("listWidget")
 
                 row_layout.addWidget(label)
                 row_layout.addWidget(list_widget)
@@ -671,19 +684,19 @@ class PlottingPage(QWidget):
         if not self.all_values_filled():
             QMessageBox.warning(self, "Error", "Please fill out all value-fields for the selected variables.")
             return
-        
+
         y_values = self.get_input_value(self.selected_y_values)
         x_values = self.get_input_value(self.selected_x_values)
 
-        Y_dict = self.parse_and_validate_input_values(y_values)
-        if Y_dict is None:
+        Y_df  = self.parse_and_validate_input_values(y_values)
+        if Y_df is None:
             return
-        X_dict = self.parse_and_validate_input_values(x_values)
-        if X_dict is None:
+        X_df = self.parse_and_validate_input_values(x_values)
+        if X_df is None:
             return
     
-        self.Y = pd.DataFrame(Y_dict)
-        self.X = pd.DataFrame(X_dict)
+        self.Y = Y_df 
+        self.X = X_df
         
         learnt_dir = os.path.join(LEARNT_FOLDER, self.pr_learnt_combobox.currentText())
 
@@ -753,11 +766,14 @@ class PlottingPage(QWidget):
         return True
     
     def parse_and_validate_input_values(self, values):
-        """Parse and validate input values."""
+        """Parse and validate input values and expand shorter arrays."""
         parsed_values = {}
-        for var_name, value in values.items():
+        max_length = 0
 
+        # First, parse and validate the inputs, and determine the maximum length
+        for var_name, value in values.items():
             if isinstance(value, dict) and 'start' in value:
+                # Handle ranged inputs
                 start_str = value['start']
                 end_str = value['end']
                 try:
@@ -765,7 +781,7 @@ class PlottingPage(QWidget):
                 except ValueError:
                     QMessageBox.warning(None, "Error", f"Invalid numeric input for start value in {var_name}: {start_str}")
                     return None
-                
+
                 if not end_str:
                     variable_value = [start_val]
                 else:
@@ -774,44 +790,57 @@ class PlottingPage(QWidget):
                     except ValueError:
                         QMessageBox.warning(None, "Error", f"Invalid numeric input for end value in {var_name}: {end_str}")
                         return None
-                    
+
                     if end_val < start_val:
                         QMessageBox.warning(None, "Error", f"End value must be greater than start value for {var_name}")
-                        return
-                    
+                        return None
+
                     num_points = int(abs(end_val - start_val)) + 1
-                    if start_val.is_integer() and end_val.is_integer():
-                        variable_value = list(range(int(start_val), int(end_val) + 1))
-                    else:
-                        variable_value = np.linspace(start_val, end_val, num=num_points).tolist()
+                    variable_value = list(range(int(start_val), int(end_val) + 1)) if start_val.is_integer() and end_val.is_integer() else np.linspace(start_val, end_val, num=num_points).tolist()
             elif isinstance(value, list):
                 if not value:
                     QMessageBox.warning(None, "Error", f"No values selected for {var_name}")
                     return None
                 variable_value = value
             else:
-                value_string = value
-                if isinstance(value_string, str):
-                    variable_value = [value_string]
-                else:
-                    variable_value = value_string
+                variable_value = [value]
 
             parsed_values[var_name] = variable_value
-        return parsed_values
+            if len(variable_value) > max_length:
+                max_length = len(variable_value)
+
+        # Now, expand the shorter arrays to match the maximum length
+        for var_name, variable_value in parsed_values.items():
+            if len(variable_value) < max_length:
+                repeats = max_length // len(variable_value) + (max_length % len(variable_value) > 0)
+                parsed_values[var_name] = (variable_value * repeats)[:max_length]
+
+        # Create DataFrame from the parsed values
+        df = pd.DataFrame(parsed_values)
+        return df
+
 
     ############# PLOTTING #############
     def should_plot(self):
         """Check if the plot should be generated based on the input data."""
-        # Check if any column in Y or X has multiple values and is numeric
         for df in [self.Y, self.X]:
             for column in df.columns:
                 if len(df[column].unique()) > 1 and pd.api.types.is_numeric_dtype(df[column]):
                     return True
-        # Additionally, check if categorical variable with multiple values is selected
+        
         categorical_variable = self.categorical_variable_combobox.currentText()
         if categorical_variable != "No" and categorical_variable in self.X.columns:
             if len(self.X[categorical_variable].unique()) > 1:
                 return True
+            
+        for column in self.Y.columns:
+            if len(self.Y[column].unique()) > 1 and pd.api.types.is_numeric_dtype(self.Y[column]):
+                return True
+            
+        for column in self.X.columns:
+            if len(self.X[column].unique()) > 1 and pd.api.types.is_numeric_dtype(self.X[column]):
+                return True
+
         return False
 
 
@@ -820,65 +849,53 @@ class PlottingPage(QWidget):
         self.load_configuration()
         self.clear_plot()
 
-        # Create a Figure and FigureCanvas
         figure = Figure()
         ax = figure.add_subplot(111)
         self.plot_canvas = FigureCanvas(figure)
         self.plot_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.plot_layout.insertWidget(1, self.plot_canvas)
 
-        # Extract the variable to plot against
-        plot_variable = self.plot_variable_combobox.currentText()
-        categorical_variable = self.categorical_variable_combobox.currentText()
-        if categorical_variable == "No":
-            categorical_variable = None
-
-        # Convert to numpy arrays
         probabilities_values = np.array(self.probabilities_values).flatten()
         probabilities_quantiles = np.array(self.probabilities_quantiles)
 
-        # Handle plotting based on whether a categorical variable is selected
-        if categorical_variable and categorical_variable in self.X.columns:
-            unique_categories = self.X[categorical_variable].unique()
-            for category in unique_categories:
-                mask = self.X[categorical_variable] == category
-                x_values = self.Y[plot_variable][mask]
-                y_values = probabilities_values[mask]
+        y_column = self.Y.columns[0]
+        x_values = self.Y[y_column]
 
-                # Plot each category separately
-                ax.plot(
-                    x_values,
-                    y_values,
-                    label=f"{categorical_variable} = {category}"
-                )
+        if probabilities_quantiles.ndim == 3:
+            lower_quantiles = probabilities_quantiles[:, 0, 0]
+            upper_quantiles = probabilities_quantiles[:, 0, -1]
+        elif probabilities_quantiles.ndim == 2 and probabilities_quantiles.shape[1] >= 2:
+            lower_quantiles = probabilities_quantiles[:, 0]
+            upper_quantiles = probabilities_quantiles[:, -1]
         else:
-            x_values = self.Y[plot_variable]
-            y_values = probabilities_values
+            lower_quantiles = np.zeros(self.Y.shape[0])
+            upper_quantiles = np.zeros(self.Y.shape[0])
 
-            # Plot the main probability curve
-            ax.plot(
-                x_values,
-                y_values,
-                color=self.color_probability_curve,
-                linewidth=self.width_probability_curve,
-                linestyle='-',
-                label='Probability'
-            )
+        ax.fill_between(
+            x_values, 
+            lower_quantiles, 
+            upper_quantiles,
+            color=self.color_uncertainty_area, 
+            alpha=self.alpha_uncertainty_area, 
+            edgecolor='darkblue', 
+            linewidth=self.width_uncertainty_area,
+            label='Uncertainty'
+        )
 
         ax.set_ylim(0, None)
-        ax.set_xlabel(plot_variable)
+        ax.set_xlabel(y_column)
         ax.set_ylabel('Probability')
 
-        # Add the 0-change line
-        ax.axvline(x=0, color=self.color_zero_change_line, linestyle='--', linewidth=self.width_zero_change_line, label='0-change Line')
+        spl = make_interp_spline(self.Y[y_column], probabilities_values, k=3)
+        Y_smooth = np.linspace(self.Y[y_column].min(), self.Y[y_column].max(), 500)
+        prob_smooth = spl(Y_smooth)
 
-        # Add legend to explain the components of the plot
+        ax.plot(Y_smooth, prob_smooth, color=self.color_probability_curve, linewidth=self.width_probability_curve, linestyle='-', label='Probability')
+        ax.axvline(x=0, color=self.color_zero_change_line, linestyle='--', linewidth=self.width_zero_change_line, label='0-change Line')
         ax.legend()
 
-        # Draw the canvas
         self.plot_canvas.draw()
         self.plot = True
-
 
     def load_configuration(self):
         """Load configuration from JSON file"""

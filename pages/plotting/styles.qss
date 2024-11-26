@@ -128,9 +128,12 @@ QLabel#title {
     font-size: 24px;
     font-weight: bold;
 }
-
 QLabel#plotTitle {
     font-size: 18px;
+}
+QLabel#inputLabel {
+    font-size: 14px;
+    font-weight: bold;
 }
 
 /* QFrame Style */
@@ -141,4 +144,14 @@ QFrame#plotFrame {
 /* QLineEdit Style */
 QLineEdit {
     border: 1px solid #0288d1;
+}
+
+/* QListWidget Style */
+QListWidget {
+    border: 1px solid #0288d1;
+    border-radius: 5px;
+    padding: 5px;
+}
+QListWidget#listWidget {
+   padding: 1px;
 }
