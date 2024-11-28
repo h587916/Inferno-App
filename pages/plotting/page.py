@@ -177,6 +177,7 @@ class PlottingPage(QWidget):
         button_layout.addWidget(create_plot_button)
 
         clear_all_button = QPushButton("Clear All")
+        clear_all_button.setObjectName("clearButton")
         clear_all_button.clicked.connect(self.clear_all)
         clear_all_button.setFixedWidth(150)
         button_layout.addWidget(clear_all_button)

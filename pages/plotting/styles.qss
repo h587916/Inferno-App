@@ -32,7 +32,15 @@ QPushButton#saveButton {
     height: 30px;
     padding: 1px;
 }
-
+QPushButton#clearButton {
+    background-color: #d32f2f;
+}
+QPushButton#clearButton:hover {
+    background-color: #c62828;
+}
+QPushButton#clearButton:pressed {
+    background-color: #b71c1c;
+}
 /* MessageBox Style */
 QMessageBox {
     background-color: white;

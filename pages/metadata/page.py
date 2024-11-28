@@ -1,6 +1,6 @@
 import os
-import sys
 import pandas as pd
+from functools import partial
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem,
                                QComboBox, QGridLayout, QListWidget, QGroupBox, QStackedWidget, QMessageBox, QFileDialog,
                                QLabel, QSpacerItem, QSizePolicy, QHBoxLayout, QLineEdit, QInputDialog)
@@ -30,6 +30,8 @@ class CustomTableWidget(QTableWidget):
         super().mousePressEvent(event)
         item = self.itemAt(event.pos())
         if item:
+            if not (item.flags() & Qt.ItemIsEditable):
+                return
             self.editItem(item)
             editor = self.indexWidget(self.currentIndex())
             if isinstance(editor, QLineEdit):
@@ -178,24 +180,39 @@ class MetadataPage(QWidget):
         layout.addWidget(self.table_widget)
 
         # Create a horizontal layout for the buttons
-        button_width = 150
+        button_width = 100
         button_layout = QHBoxLayout()
         button_layout.setAlignment(Qt.AlignHCenter)
         button_layout.setContentsMargins(0, 10, 0, 0) # left, top, right, bottom
         button_layout.setSpacing(20)
 
         # Button to save the metadata file
-        self.save_button = QPushButton("Save Changes")
-        self.save_button.clicked.connect(self.save_metadata_file)
-        self.save_button.setFixedWidth(button_width)
-        button_layout.addWidget(self.save_button)
+        save_button = QPushButton("Save")
+        save_button.clicked.connect(self.on_save_button_clicked)
+        save_button.setFixedWidth(button_width)
+        button_layout.addWidget(save_button)
 
         # Button to go back to the file management panel
-        self.back_button = QPushButton("Discard Changes")
-        self.back_button.setObjectName("deleteButton")
-        self.back_button.clicked.connect(self.go_back)
-        self.back_button.setFixedWidth(button_width)
-        button_layout.addWidget(self.back_button)
+        discard_button = QPushButton("Discard")
+        discard_button.setObjectName("deleteButton")
+        discard_button.clicked.connect(self.discard_changes)
+        discard_button.setFixedWidth(button_width)
+        button_layout.addWidget(discard_button)
+
+        # +/- buttons for adding/removing columns
+        add_column_button = QPushButton("+")
+        add_column_button.setObjectName("addButton")
+        add_column_button.setFixedSize(25, 25)
+        add_column_button.setToolTip("Add 'V' column")
+        add_column_button.clicked.connect(self.add_v_column)
+        button_layout.addWidget(add_column_button)
+
+        remove_column_button = QPushButton("-")
+        remove_column_button.setObjectName("deleteButton")
+        remove_column_button.setFixedSize(25, 25)
+        remove_column_button.setToolTip("Remove 'V' column")
+        remove_column_button.clicked.connect(self.remove_v_column)
+        button_layout.addWidget(remove_column_button)
 
         layout.addLayout(button_layout)
 
@@ -335,6 +352,7 @@ class MetadataPage(QWidget):
                     combo = QComboBox()
                     combo.addItems(["nominal", "ordinal", "continuous"])
                     combo.setCurrentText(str(value))
+                    combo.currentIndexChanged.connect(partial(self.on_type_combobox_change, i, combo))
 
                     for index in range(combo.count()):
                         item_text = combo.itemText(index)
@@ -344,8 +362,100 @@ class MetadataPage(QWidget):
                 else:
                     item = QTableWidgetItem(str(value))
                     self.table_widget.setItem(i, j, item)
+            
+            initial_type = self.table_widget.cellWidget(i, type_column).currentText()
+            self.update_editability(i, initial_type)
 
         self.meta_title.setText(f"Editing Metadata File: {os.path.basename(metadata_file_path)}")
+
+    def on_type_combobox_change(self, row_index, combo, index):
+        selected_type = combo.currentText()
+        self.reset_row(row_index, selected_type)
+        self.update_editability(row_index, selected_type)
+
+    def update_editability(self, row_index, selected_type):
+        """Enable or disable cells based on the value of the 'type' column."""
+        column_names = [self.table_widget.horizontalHeaderItem(i).text() for i in range(self.table_widget.columnCount())]
+
+        if selected_type == "nominal":
+            editable_columns = [col for col in column_names if col.startswith("V")]
+        elif selected_type == "continuous":
+            editable_columns = ["datastep", "domainmin", "domainmax", "minincluded", "maxincluded"]
+        else:  # "ordinal"
+            editable_columns = column_names  # All columns editable
+
+        for col_index, column_name in enumerate(column_names):
+            item = self.table_widget.item(row_index, col_index)
+            if item:
+                if column_name in editable_columns:
+                    item.setFlags(item.flags() | Qt.ItemIsEditable) # Enable editing
+                else:
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable) # Disable editing
+
+    def reset_row(self, row_index, selected_type):
+        """Reset irrelevant fields in the row based on the selected type."""
+        column_names = [self.table_widget.horizontalHeaderItem(i).text() for i in range(self.table_widget.columnCount())]
+
+        if selected_type == "nominal":
+            reset_columns = ["datastep", "domainmin", "domainmax", "minincluded", "maxincluded"]
+        elif selected_type == "continuous":
+            reset_columns = [col for col in column_names if col.startswith("V")]
+        else:
+            reset_columns = []  # No columns to reset for "ordinal"
+
+        for col_index, column_name in enumerate(column_names):
+            if column_name in reset_columns:
+                item = self.table_widget.item(row_index, col_index)
+                if item:
+                    item.setText('')  # Clear the value
+
+    def on_save_button_clicked(self):
+        """Validate and save the metadata file if validation passes."""
+        if self.validate_metadata():
+            self.save_metadata_file()
+    
+    def validate_metadata(self):
+        column_names = [self.table_widget.horizontalHeaderItem(i).text() for i in range(self.table_widget.columnCount())]
+        type_column_index = column_names.index("type")
+
+        v_columns = [i for i, col in enumerate(column_names) if col.startswith("V")]
+        continuous_columns = ["datastep", "domainmin", "domainmax", "minincluded", "maxincluded"]
+        continuous_indices = [column_names.index(col) for col in continuous_columns if col in column_names]
+
+        acceptable_values = {'', 'true', 'false', 'True', 'False', 'TRUE', 'FALSE'}  # Acceptable value for 'minincluded' and 'maxincluded'
+
+        for i in range(self.table_widget.rowCount()):
+            type_value = self.table_widget.cellWidget(i, type_column_index).currentText()
+            v_values = [self.table_widget.item(i, v_index).text().strip() for v_index in v_columns]
+            continuous_values = [self.table_widget.item(i, cont_index).text().strip() for cont_index in continuous_indices]
+
+            if type_value == "nominal":
+                valid_v_count = sum(bool(self.table_widget.item(i, v_index).text().strip()) for v_index in v_columns)
+                if valid_v_count < 2:
+                    QMessageBox.warning(self, "Validation Error", f"Row {i+1}: 'Nominal' type requires at least 2 'V' columns with values.")
+                    return False
+
+            elif type_value == "continuous":
+                if not all(continuous_values) or any(v_values):
+                    QMessageBox.warning(self, "Validation Error", f"Row {i+1}: Variables with type 'Continuous' requires values in all fields except the 'V' columns.")
+                    return False
+                minincluded_index = column_names.index("minincluded")
+                maxincluded_index = column_names.index("maxincluded")
+                minincluded_value = self.table_widget.item(i, minincluded_index).text().strip()
+                maxincluded_value = self.table_widget.item(i, maxincluded_index).text().strip()
+                if minincluded_value not in acceptable_values or maxincluded_value not in acceptable_values:
+                    QMessageBox.warning(self, "Validation Error", f"Row {i+1}: 'minincluded' and 'maxincluded' must be empty, 'False' or 'TRUE'.")
+                    return False
+
+            elif type_value == "ordinal":
+                has_v_values = any(v_values)
+                has_continuous_values = any(continuous_values)
+
+                if has_v_values == has_continuous_values:  # Both True or both False
+                    QMessageBox.warning(self, "Validation Error", f"Row {i+1}: Variables with type 'Ordinal' requires values in either the 'V' columns or the other fields, but not both.")
+                    return False
+
+        return True
 
     def save_metadata_file(self):
         """Save the modified metadata file."""
@@ -366,12 +476,41 @@ class MetadataPage(QWidget):
                 else:
                     row.append(self.table_widget.item(i, j).text())
             metadata_df.loc[i] = row
+            
         metadata_df.to_csv(metadata_file_path, index=False)
         QMessageBox.information(self, "Metadata Saved", "Metadata file saved successfully.")
         self.stacked_widget.setCurrentWidget(self.file_management_panel)
 
-    def go_back(self):
+    def discard_changes(self):
         """Return to the file management panel."""
         reply = QMessageBox.question(self, "Discard Changes", "Are you sure you want to discard the changes?")
         if reply == QMessageBox.Yes:
             self.stacked_widget.setCurrentWidget(self.file_management_panel)
+
+    def add_v_column(self):
+        """Add a new 'V' column to the metadata table."""
+        current_v_columns = [col for col in [self.table_widget.horizontalHeaderItem(i).text() for i in range(self.table_widget.columnCount())] if col.startswith('V')]
+        new_v_column_name = f"V{len(current_v_columns) + 1}"
+        self.table_widget.insertColumn(self.table_widget.columnCount())
+        column_index = self.table_widget.columnCount() - 1
+        self.table_widget.setHorizontalHeaderItem(column_index, QTableWidgetItem(new_v_column_name))
+
+        type_column_index = 1 # 'type' column index
+
+        for row_index in range(self.table_widget.rowCount()):
+            selected_type = self.table_widget.cellWidget(row_index, type_column_index).currentText()
+
+            new_item = QTableWidgetItem('')
+            self.table_widget.setItem(row_index, column_index, new_item)
+
+            if selected_type == "nominal" or selected_type == "ordinal":
+                new_item.setFlags(new_item.flags() | Qt.ItemIsEditable)
+            else:
+                new_item.setFlags(new_item.flags() & ~Qt.ItemIsEditable)
+  
+    def remove_v_column(self):
+        """Remove the last 'V' column from the metadata table."""
+        current_v_columns = [i for i, col in enumerate([self.table_widget.horizontalHeaderItem(i).text() for i in range(self.table_widget.columnCount())]) if col.startswith('V')]
+        if len(current_v_columns) > 2:
+            self.table_widget.removeColumn(current_v_columns[-1])
+     
