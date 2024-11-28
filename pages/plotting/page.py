@@ -138,7 +138,7 @@ class PlottingPage(QWidget):
         categorical_variable_layout.setContentsMargins(0, 0, 0, 0)
         categorical_variable_layout.setSpacing(5)
 
-        categorical_variable_label = QLabel("Plot a categorical X-variable with different values?")
+        categorical_variable_label = QLabel("Plot a categorical X-variable with multiple values?")
         self.categorical_variable_combobox = CustomComboBox()
         self.categorical_variable_combobox.currentIndexChanged.connect(self.on_categorical_variable_selected)
 

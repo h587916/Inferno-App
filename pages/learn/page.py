@@ -41,7 +41,6 @@ class LearnPage(QWidget):
 
         simulation_layout = QVBoxLayout()
         simulation_layout.setContentsMargins(50, 50, 50, 0)  # left, top, right, bottom
-        simulation_layout.setAlignment(Qt.AlignHCenter)
         self.simulation_group.setLayout(simulation_layout)
         
         fixed_label_width = 120
@@ -53,6 +52,8 @@ class LearnPage(QWidget):
         file_layout.addWidget(csv_label)
         file_layout.addWidget(self.csv_combobox)
         simulation_layout.addLayout(file_layout)
+
+        simulation_layout.addSpacing(5)
 
         meta_layout = QHBoxLayout()
         metadata_label = QLabel("Select a Metadata File:")
@@ -135,9 +136,14 @@ class LearnPage(QWidget):
 
         results_list_layout.addLayout(button_layout)
 
-        # General Setup
         layout.addWidget(self.simulation_group, 2, 0)
         layout.addWidget(self.results_list_group, 2, 1)
+
+        self.simulation_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.results_list_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        layout.setColumnStretch(0, 1)  # Left side will take 1 part
+        layout.setColumnStretch(1, 2)  # Right side will take 2 parts
 
         self.setLayout(layout)
 
