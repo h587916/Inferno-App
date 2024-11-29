@@ -703,15 +703,19 @@ class PlottingPage(QWidget):
         
         learnt_dir = os.path.join(LEARNT_FOLDER, self.pr_learnt_combobox.currentText())
 
-        try:
-            if self.should_plot():
+        if self.should_plot():
+            try:
                 self.probabilities_values, self.probabilities_quantiles = run_Pr(self.Y, learnt_dir, self.X)
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Failed to run the Pr function: {str(e)}")
+                return
+
+            try:
                 self.plot_probabilities()
-            else:
-                QMessageBox.warning(None, "Error", "No plot generated. No numeric variable with multiple values to plot.")
-        
-        except Exception as e:
-            QMessageBox.critical(None, "Error", f"Failed to run the Pr function: {str(e)}")
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Failed to plot probabilities: {str(e)}")
+        else:
+            QMessageBox.warning(None, "Error", "No plot generated. No numeric variable with multiple values to plot.")
 
     def parse_input_value(self, value):
         """Parse the input value string for non-nominal types, supporting range (a:b) input."""
@@ -846,9 +850,8 @@ class PlottingPage(QWidget):
 
         return False
 
-
     def plot_probabilities(self):
-        """Plot the probabilities and uncertainty."""
+        """Plot the probabilities and uncertainty for multiple variables."""
         self.load_configuration()
         self.clear_plot()
 
@@ -857,44 +860,62 @@ class PlottingPage(QWidget):
         self.plot_canvas = FigureCanvas(figure)
         self.plot_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.plot_layout.insertWidget(1, self.plot_canvas)
-
+        
         probabilities_values = np.array(self.probabilities_values)
         probabilities_quantiles = np.array(self.probabilities_quantiles)
 
-        y_column = self.Y.columns[0]
-        x_values = self.Y[y_column]
+        num_variables = probabilities_values.shape[1]
+        colors = ['blue', 'green', 'orange', 'purple', 'brown', 'red']
+        uncertainty_colors = ['lightblue', 'lightgreen', 'peachpuff', 'thistle', 'wheat', 'lightcoral']
 
-        if probabilities_quantiles.ndim == 3:
-            lower_quantiles = probabilities_quantiles[:, 0, 0]
-            upper_quantiles = probabilities_quantiles[:, 0, -1]
-        elif probabilities_quantiles.ndim == 2 and probabilities_quantiles.shape[1] >= 2:
-            lower_quantiles = probabilities_quantiles[:, 0]
-            upper_quantiles = probabilities_quantiles[:, -1]
-        else:
-            lower_quantiles = np.zeros(self.Y.shape[0])
-            upper_quantiles = np.zeros(self.Y.shape[0])
+        for i in range(num_variables):
+            y_column = self.Y.columns[0]
+            x_values = self.Y[y_column]
 
-        ax.fill_between(
-            x_values, 
-            lower_quantiles, 
-            upper_quantiles,
-            color=self.color_uncertainty_area, 
-            alpha=self.alpha_uncertainty_area, 
-            edgecolor='darkblue', 
-            linewidth=self.width_uncertainty_area,
-            label='Uncertainty'
-        )
+            if probabilities_quantiles.ndim == 3:
+                lower_quantiles = probabilities_quantiles[:, i, 0]
+                upper_quantiles = probabilities_quantiles[:, i, -1]
+            elif probabilities_quantiles.ndim == 2 and probabilities_quantiles.shape[1] >= 2:
+                lower_quantiles = probabilities_quantiles[:, 0]
+                upper_quantiles = probabilities_quantiles[:, -1]
+            else:
+                lower_quantiles = np.zeros(self.Y.shape[0])
+                upper_quantiles = np.zeros(self.Y.shape[0])
 
-        ax.set_ylim(0, None)
-        ax.set_xlabel(y_column)
-        ax.set_ylabel('Probability')
+            color = colors[i % len(colors)]
+            uncertainty_color = uncertainty_colors[i % len(uncertainty_colors)]
 
-        spl = make_interp_spline(self.Y[y_column], probabilities_values, k=3)
-        Y_smooth = np.linspace(self.Y[y_column].min(), self.Y[y_column].max(), 500)
-        prob_smooth = spl(Y_smooth)
+            ax.fill_between(
+                x_values, 
+                lower_quantiles, 
+                upper_quantiles,
+                color=uncertainty_color, 
+                alpha=self.alpha_uncertainty_area, 
+                edgecolor='darkblue', 
+                linewidth=self.width_uncertainty_area,
+                label=f'{y_column} Uncertainty'
+            )
 
-        ax.plot(Y_smooth, prob_smooth, color=self.color_probability_curve, linewidth=self.width_probability_curve, linestyle='-', label='Probability')
+            try:
+                spl = make_interp_spline(x_values, probabilities_values[:, i], k=3)
+                x_smooth = np.linspace(x_values.min(), x_values.max(), 500)
+                prob_smooth = spl(x_smooth)
+            except ValueError:
+                x_smooth = x_values
+                prob_smooth = probabilities_values[:, i]
+
+            ax.plot(
+                x_smooth, 
+                prob_smooth, 
+                color=color, 
+                linewidth=self.width_probability_curve, 
+                linestyle='-', 
+                label=f'{y_column} Probability'
+            )
+
         ax.axvline(x=0, color=self.color_zero_change_line, linestyle='--', linewidth=self.width_zero_change_line, label='0-change Line')
+        ax.set_xlabel('Variable Values')
+        ax.set_ylabel('Probability')
         ax.legend()
 
         self.plot_canvas.draw()
