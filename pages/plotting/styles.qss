@@ -150,7 +150,7 @@ QFrame#plotFrame {
 }
 
 /* QLineEdit Style */
-QLineEdit {
+QLineEdit#inputField {
     border: 1px solid #0288d1;
 }
 

@@ -581,7 +581,7 @@ class PlottingPage(QWidget):
 
             elif var_type == "nominal" or (var_type == "ordinal" and "options" in self.metadata_dict[variable]):
                 options = self.metadata_dict[variable].get("options", [])
-                input_box = QComboBox()
+                input_box = CustomComboBox()
                 input_box.addItems(options)
                 if variable in self.variable_values:
                     input_box.setCurrentText(self.variable_values[variable])
@@ -598,6 +598,7 @@ class PlottingPage(QWidget):
 
                 start_label = QLabel("From ")
                 start_input = QLineEdit()
+                start_input.setObjectName("inputField")
                 start_input.setFixedSize(70, 30)
                 start_input.setPlaceholderText("Enter value")
                 start_input.textChanged.connect(self.value_changed)
@@ -605,6 +606,7 @@ class PlottingPage(QWidget):
 
                 end_label = QLabel(" To ")
                 end_input = QLineEdit()
+                end_input.setObjectName("inputField")
                 end_input.setFixedSize(70, 30)
 
                 if variable == plot_variable:
@@ -672,7 +674,7 @@ class PlottingPage(QWidget):
                     values = [item.text() for item in selected_items]
                     input_values[variable] = values
                 else:
-                    if isinstance(widget, QComboBox):
+                    if isinstance(widget, CustomComboBox):
                         input_values[variable] = widget.currentText()
                     else:
                         QMessageBox.warning(None, "Error", f"Invalid input field for {variable}")
@@ -856,7 +858,7 @@ class PlottingPage(QWidget):
         self.plot_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.plot_layout.insertWidget(1, self.plot_canvas)
 
-        probabilities_values = np.array(self.probabilities_values).flatten()
+        probabilities_values = np.array(self.probabilities_values)
         probabilities_quantiles = np.array(self.probabilities_quantiles)
 
         y_column = self.Y.columns[0]
