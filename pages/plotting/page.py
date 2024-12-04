@@ -561,6 +561,7 @@ class PlottingPage(QWidget):
             if variable == categorical_variable:
                 options = self.metadata_dict[variable].get("options", [])
                 list_widget = QListWidget()
+                list_widget.itemSelectionChanged.connect(lambda: self.limit_selection(list_widget, 2))
                 list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
                 list_widget.addItems(options)
                 if variable in self.variable_values:
@@ -637,7 +638,15 @@ class PlottingPage(QWidget):
                 QMessageBox.warning(None, "Error", f"Invalid variable type for {variable}: {var_type}")
 
             self.add_custom_spacing(self.values_layout, 3)
-    
+
+    def limit_selection(self, list_widget, max_items):
+        """Limit the selection in the list_widget to a maximum number of items."""
+        selected_items = list_widget.selectedItems()
+        if len(selected_items) > max_items:
+            for item in selected_items[max_items:]:
+                item.setSelected(False)
+            QMessageBox.warning(self, "Selection Limit", f"You can select maximum {max_items} variables.")
+
     def update_values_layout_tailpr(self):
         """Update the values layout based on the selected variables."""
         QMessageBox.warning(None, "TODO", "Logic for plotting variables from the X-list is not implemented yet.")
@@ -1071,6 +1080,9 @@ class PlottingPage(QWidget):
 
         self.plot_variable_frame.hide()
         self.plot_variable_combobox.clear()
+        
+        self.categorical_variable_frame.hide()
+        self.categorical_variable_combobox.clear()
 
         self.clear_input_layout()
         self.update_plot_title()
