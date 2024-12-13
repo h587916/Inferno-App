@@ -260,11 +260,10 @@ class LearnPage(QWidget):
     def load_configuration(self):
         """Load configuration from JSON"""
         if os.path.exists(USER_CONFIG_PATH):
-            # Load user configuration
             with open(USER_CONFIG_PATH, 'r') as f:
                 config = json.load(f)
         else:
-            # Use default values defined in code
+            # Use default values
             config = {
                 'nsamples': 3600,
                 'nchains': 60,
@@ -272,15 +271,16 @@ class LearnPage(QWidget):
                 'seed': 16,
                 'parallel': 12
             }
-        self.nsamples = config.get('nsamples', 3600)
-        self.nchains = config.get('nchains', 60)
-        maxhours = config.get('maxhours', 'inf')
+        self.nsamples = config.get('nsamples')
+        self.nchains = config.get('nchains')
+        maxhours = config.get('maxhours')
+        self.maxhours = float(maxhours)
         if maxhours == 'inf':
             self.maxhours = float('inf')
         else:
             self.maxhours = float(maxhours)
-        self.seed = config.get('seed', 16)
-        self.parallel = config.get('parallel', 12)
+        self.seed = config.get('seed')
+        self.parallel = config.get('parallel')
 
     def configure_run_learn(self):
         """Open a dialog to configure run_learn parameters."""
@@ -325,26 +325,47 @@ class LearnPage(QWidget):
 
     def save_configuration(self, dialog):
         """Save the configured values."""
-        self.nsamples = int(self.nsamples_input.text())
-        self.nchains = int(self.nchains_input.text())
-        maxhours_text = self.maxhours_input.text()
-        if maxhours_text == 'inf':
-            self.maxhours = float('inf')
-        else:
-            self.maxhours = float(maxhours_text)
-        self.seed = int(self.seed_input.text())
-        self.parallel = int(self.parallel_input.text())
-        # Save the new configuration to config.json
-        config = {
-            'nsamples': self.nsamples,
-            'nchains': self.nchains,
-            'maxhours': 'inf' if self.maxhours == float('inf') else self.maxhours,
-            'seed': self.seed,
-            'parallel': self.parallel
-        }
-        with open(USER_CONFIG_PATH, 'w') as f:
-            json.dump(config, f)
-        dialog.accept()
+        try:
+            nsamples_text = self.nsamples_input.text().strip()
+            if not nsamples_text.isdigit():
+                raise ValueError("'nsamples' must be a positive integer.")
+            self.nsamples = int(nsamples_text)
+
+            nchains_text = self.nchains_input.text().strip()
+            if not nchains_text.isdigit():
+                raise ValueError("'nchains' must be a positive integer.")
+            self.nchains = int(nchains_text)
+
+            maxhours_text = self.maxhours_input.text().strip()
+            if maxhours_text.lower() == 'inf':
+                self.maxhours = float('inf')
+            elif maxhours_text.replace('.', '', 1).isdigit():
+                self.maxhours = float(maxhours_text)
+                if self.maxhours <= 0:
+                    raise ValueError("'maxhours' must be a positive number or 'inf'.")
+            else:
+                raise ValueError("'maxhours' must be a positive number or 'inf'.")
+
+            seed_text = self.seed_input.text().strip()
+            self.seed = int(seed_text) if seed_text.isdigit() else None
+
+            parallel_text = self.parallel_input.text().strip()
+            self.parallel = int(parallel_text) if parallel_text.isdigit() else None
+
+            config = {
+                'nsamples': self.nsamples,
+                'nchains': self.nchains,
+                'maxhours': 'inf' if self.maxhours == float('inf') else self.maxhours,
+                'seed': self.seed,
+                'parallel': self.parallel
+            }
+
+            with open(USER_CONFIG_PATH, 'w') as f:
+                json.dump(config, f)
+            dialog.accept()
+
+        except ValueError as e:
+            QMessageBox.warning(self, "Invalid Input", str(e))
 
     def run_learn_function(self):
         """Run the learn function with the selected CSV and Metadata files."""
@@ -357,29 +378,22 @@ class LearnPage(QWidget):
             QMessageBox.warning(self, "Error", "Please select both a CSV file and a Metadata file.")
             return
 
-        # Confirmation message box before running
         confirmation = QMessageBox.question(self, "Confirm", f"Run Monte Carlo simulation with:\nMetadata: {metadata_file}\nData: {csv_file}", QMessageBox.Yes | QMessageBox.No)
         if confirmation == QMessageBox.No:
             return
 
-        # Extract the base name of the CSV file (without extension)
         datafile_name = os.path.splitext(csv_file)[0]
-
-        # Generate the output directory under LEARNT_FOLDER
         outputdir = os.path.join(LEARNT_FOLDER, datafile_name)
 
-        # Show a message box to indicate the learn function is running
         running_message = QMessageBox(self)
         running_message.setWindowTitle("Running")
         running_message.setText("Running the Monte Carlo simulation... \nThis will take a few minutes, so you might want\n to go grab a cup of coffee while waiting.")
         running_message.setStandardButtons(QMessageBox.NoButton)
         running_message.show()
 
-        # Full paths for the selected files
         csv_file_path = os.path.join(UPLOAD_FOLDER, csv_file)
         metadata_file_path = os.path.join(METADATA_FOLDER, metadata_file)
 
-        # Run the learn() function with the selected files
         result = run_learn(
             metadatafile=metadata_file_path, 
             datafile=csv_file_path, 
@@ -391,10 +405,8 @@ class LearnPage(QWidget):
             seed=self.seed
         )
 
-        # Close the running message box after completion
         running_message.done(0)
 
-        # Provide feedback with a message box based on the result
         if result:
             QMessageBox.information(self, "Success", f"Monte Carlo simulation runned successfully!\nThe results are saved in the '{datafile_name}' folder.")
             self.file_manager.refresh()

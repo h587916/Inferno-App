@@ -947,6 +947,7 @@ class PlottingPage(QWidget):
             json.dump(self.config, f)
 
     def reset_configuration(self):
+        """Reset the configuration to default values."""
         with importlib.resources.open_text('pages.plotting', 'default_config.json') as f:
             self.config = json.load(f)
 
@@ -1130,6 +1131,7 @@ class PlottingPage(QWidget):
         dialog.exec_()
 
     def save_configuration(self, dialog):
+        """Save the configuration values"""
         try:
             config = {
                 "shared": {
@@ -1170,13 +1172,14 @@ class PlottingPage(QWidget):
             return
 
     def validate_and_parse_float(self, value, field_name):
+        """Validate and parse a string value as a float."""
         try:
             return float(value)
         except ValueError:
             raise ValueError(f"Invalid value for {field_name}: {value}. Please enter a numeric value.")
 
     def validate_configuration(self, config):
-        # Check numeric fields
+        """Validate the configuration values."""
         if config['shared']['width_probability_curve'] <= 0:
             QMessageBox.warning(self, "Invalid Input", "'Probability Curve Width' must be positive.")
             return False
@@ -1196,6 +1199,7 @@ class PlottingPage(QWidget):
         return True
 
     def download_plot(self):
+        """Download the plot as a PNG, JPEG, or PDF file."""
         if self.plot_canvas is None:
             QMessageBox.warning(self, "Error", "There is no plot to download.")
             return
@@ -1229,7 +1233,6 @@ class PlottingPage(QWidget):
     ############# CLEAR ALL #############
     def clear_all(self):
         """Clears all selections and resets the interface."""
-
         self.pr_learnt_combobox.setCurrentIndex(-1)
 
         self.Y_listwidget.clear()

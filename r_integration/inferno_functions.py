@@ -44,26 +44,30 @@ def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=
         pandas2ri.deactivate()
 
 
-def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 3600, nchains: int = 60, maxhours: float = float('inf'), parallel: int = 12, seed: int = 16):
+def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 3600, nchains: int = 60, maxhours: float = float('inf'), parallel: int = None, seed: int = None):
     try:
        # Convert file paths to R string vectors
         metadatafile_r = StrVector([metadatafile])
         datafile_r = StrVector([datafile])
 
-        # Call the 'learn' function from the inferno package with the selected parameters
-        result = inferno.learn(
-            data=datafile_r,
-            metadata=metadatafile_r,
-            outputdir=outputdir,
-            nsamples=nsamples,
-            nchains=nchains,
-            maxhours=maxhours,
-            parallel=parallel,
-            seed=seed,
-            appendtimestamp=False,  
-            appendinfo=False,  
-            plottraces=False 
-        )
+        learn_args = {
+            "data": datafile_r,
+            "metadata": metadatafile_r,
+            "outputdir": outputdir,
+            "nsamples": nsamples,
+            "nchains": nchains,
+            "maxhours": maxhours,
+            "appendtimestamp": False,
+            "appendinfo": False,
+            "plottraces": False
+        }
+
+        if parallel is not None:
+            learn_args["parallel"] = parallel
+        if seed is not None:
+            learn_args["seed"] = seed
+
+        result = inferno.learn(**learn_args)
         return result
 
     except Exception as e:
