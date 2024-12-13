@@ -143,6 +143,9 @@ QLabel#inputLabel {
     font-size: 14px;
     font-weight: bold;
 }
+QLabel#sectionLabel {
+    font-weight: bold;
+}
 
 /* QFrame Style */
 QFrame#plotFrame {

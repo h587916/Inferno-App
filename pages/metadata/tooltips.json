@@ -1,18 +1,19 @@
 
 {
     "header_tooltips": {
-        "name": "The name of the variate. Must match exactly what is used in the dataset,\nincluding upper/lower-case.",
-        "type": "The data type of the variate. Possible values: nominal, ordinal,\ncontinuous.",
-        "domainmin": "The minimum value for the variate (ordinal/continuous). Can be a real\nnumber or empty, which is treated as -Inf. E.g., 'age' might have a\nminimum of 18 if only adults are considered.",
-        "domainmax": "The maximum value for the variate. Can be a real number or empty, treated\nas +Inf. E.g., 'age' might have a maximum of 90 if that's the upper\ncategory in the dataset.",
-        "datastep": "The smallest difference between values (ordinal/continuous). E.g., for\nages rounded to years, datastep = 1. For a precise measure, like length,\ndatastep = 0.01 (centimeters). Empty is treated as 0.",
-        "minincluded": "Specifies if the minimum value (domainmin) is included. Values: true, false,\nor empty. E.g., for a temperature with a lower bound of 0 but not\nreachable, minincluded would be false.",
-        "maxincluded": "Specifies if the maximum value (domainmax) is included. Similar to\nminincluded. If domainmax is infinite, maxincluded is automatically\nfalse."
+        "type": "The data type of the variable. Possible values are: nominal, ordinal or continuous.",
+        "domainmin": "The minimum value for the variable (type ordinal/continuous).\n Should be a real number or -inf (if not specified).\n E.g. 'age' might have a minimum of 18 if only adults are considered.",
+        "domainmax": "The maximum value for the variable (type ordinal/continuous).\n Should be a real number or inf (if not specified).\n E.g. 'age' might have a maximum of 90 if that's the upper category in the dataset.",
+        "datastep": "The smallest difference between values (type ordinal/continuous).\n E.g., for ages rounded to years, datastep = 1.\n For a precise measure like length, datastep = 0.01 (centimeters).",
+        "minincluded": "Specifies if the minimum value (domainmin) is included or not. Values are True/False.\n E.g. for a temperature with a lower bound of 0 that's not reachable, minincluded would be False.",
+        "maxincluded": "Specifies if the maximum value (domainmax) is included or not. Values are True/False.\n E.g. for a temperature with an upper bound of 100 that's reachable, maxincluded would be True.",
+        "V1": "The first value of a nominal/ordinal variable. E.g. for a nominal variable 'color', V1 could be 'red'.",
+        "V2": "The second value of a nominal/ordinal variable. E.g. for a nominal variable 'color', V2 could be 'green'."
     },
     "combobox_item_tooltips": {
-        "nominal": "A nominal variate has a fixed set of unordered values (e.g., 'red',\n'green', 'blue'). Values must be listed in fields V1, V2, etc. Include all\npossible values, even if not present in the dataset. Binary variates (e.g.,\n'yes'/'no') can also be nominal.",
-        "ordinal": "An ordinal variate has ordered values (e.g., 'low', 'medium', 'high').\nValues can be listed either in V1, V2, etc., or by specifying domainmin,\ndomainmax, datastep for numeric, equally spaced values (e.g., 1, 2, 3).",
-        "continuous": "A continuous variate has a range of values with ordering (e.g., age,\nlength). Fields domainmin, domainmax, datastep, minincluded, maxincluded\nmust be specified. If values are rounded, datastep reflects that precision\n(e.g., 1 year or 0.01 meters)."
+        "nominal": "A nominal variable has a fixed set of unordered values. E.g. ('red', 'green', 'blue').\n Values must be listed in fields V1, V2, etc. Include all possible values, even if not present in the dataset.\n Binary variables (e.g.,'yes'/'no') is considered to be nominal.",
+        "ordinal": "An ordinal variable has ordered values, where the order has an important meaning.\n Values can be listed either in V1, V2, etc. (if it's categorical, e.g. 'low', 'medium', 'high'),\n or by specifying domainmin, domainmax, minincluded, maxincluded and datastep (if it's numeric, e.g. 1,2,3,4,5).",
+        "continuous": "A continuous variable has a range of values with ordering (e.g., age, length). \n Fields domainmin, domainmax, datastep, minincluded, maxincluded must be specified.\n If values are rounded, datastep reflects that precision (e.g., 1 year or 0.01 meters)."
     }
   }
   

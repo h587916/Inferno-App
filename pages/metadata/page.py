@@ -315,6 +315,7 @@ class MetadataPage(QWidget):
     def display_metadata(self, metadata_file_path):
         """Display metadata in the table widget with tooltips."""
         metadata_df = pd.read_csv(metadata_file_path)
+        metadata_df = self.replace_empty_values(metadata_df)
         metadata_df = metadata_df.fillna('')
         
         self.table_widget.setRowCount(len(metadata_df))
@@ -367,6 +368,35 @@ class MetadataPage(QWidget):
             self.update_editability(i, initial_type)
 
         self.meta_title.setText(f"Editing Metadata File: {os.path.basename(metadata_file_path)}")
+
+    def replace_empty_values(self, metadata_df):
+        """Replace empty values in the metadata DataFrame based on type."""
+        for index, row in metadata_df.iterrows():
+            row_type = row["type"]
+
+            if row_type == "continuous":
+                self.replace(row, metadata_df, index)
+
+            elif row_type == "ordinal":
+                v_columns = [col for col in metadata_df.columns if col.startswith("V")]
+                v_values = [row[col] for col in v_columns if col in metadata_df.columns]
+
+                if all(pd.isna(val) or val == "" for val in v_values):
+                    self.replace(row, metadata_df, index)
+
+        return metadata_df
+    
+    def replace(self, row, metadata_df, index):
+        if pd.isna(row.get("domainmin", None)):
+            metadata_df.at[index, "domainmin"] = float("-Inf")
+        if pd.isna(row.get("domainmax", None)):
+            metadata_df.at[index, "domainmax"] = float("+Inf")
+        if pd.isna(row.get("datastep", None)):
+            metadata_df.at[index, "datastep"] = 1.0
+        if pd.isna(row.get("minincluded", None)):
+            metadata_df.at[index, "minincluded"] = "False"
+        if pd.isna(row.get("maxincluded", None)):
+            metadata_df.at[index, "maxincluded"] = "False"
 
     def on_type_combobox_change(self, row_index, combo, index):
         selected_type = combo.currentText()

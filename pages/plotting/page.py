@@ -6,7 +6,7 @@ import importlib.resources
 from itertools import product
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, 
                                 QComboBox, QListWidget, QFileDialog, QAbstractItemView, QFormLayout, QLineEdit, 
-                                QMessageBox, QSizePolicy, QAbstractItemView, QDialog, QSpacerItem)
+                                QMessageBox, QSizePolicy, QAbstractItemView, QDialog, QSpacerItem, QCheckBox)
 from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -29,7 +29,6 @@ class PlottingPage(QWidget):
     def __init__(self, file_manager):
         super().__init__()
         self.file_manager = file_manager
-        self.plot = False
         self.plot_canvas = None
         self.selected_y_values = []
         self.selected_x_values = []
@@ -37,6 +36,12 @@ class PlottingPage(QWidget):
         self.metadata_dict = {}
         self.variable_values = {}
         self.input_fields = {}
+        self.current_list_widget = None
+        self.config = {}
+        self.probabilities_values = None
+        self.probabilities_quantiles = None
+        self.reset_configuration()
+        self.write_configuration()
 
         main_layout = QVBoxLayout()
 
@@ -216,7 +221,7 @@ class PlottingPage(QWidget):
         self.plot_button_layout.setSpacing(20)
 
         self.configure_plot_button = QPushButton("Configure")
-        self.configure_plot_button.clicked.connect(self.configure_plot)
+        self.configure_plot_button.clicked.connect(self.on_configure_button_clicked)
         self.configure_plot_button.setFixedWidth(100)
         self.plot_button_layout.addWidget(self.configure_plot_button)
 
@@ -260,7 +265,7 @@ class PlottingPage(QWidget):
     ############# RESIZE EVENT #############
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        new_height = self.height() * 0.7  # Adjust the factor to set the height you want relative to the window
+        new_height = self.height() * 0.7
         self.plot_frame.setMinimumHeight(new_height)
 
     ############# PLOT TITLE ############# 
@@ -427,8 +432,6 @@ class PlottingPage(QWidget):
 
     def update_selected_variables(self, added_variables, removed_variables):
         """Update the selected variables and input fields based on the added and removed variables."""
-        self.clear_input_layout()
-
         self.plot_variable_combobox.blockSignals(True)  # Block signals temporarily
 
         for value in added_variables:
@@ -445,6 +448,11 @@ class PlottingPage(QWidget):
 
         self.plot_variable_combobox.setCurrentIndex(-1)
         self.plot_variable_combobox.blockSignals(False)  # Unblock signals after updating
+
+        if self.plot_variable_combobox.currentIndex() < 0:
+            self.categorical_variable_combobox.clear()
+            self.categorical_variable_frame.hide()
+            self.clear_input_layout()
 
         self.update_disabled_items()
         self.update_X_list_visibility()
@@ -507,6 +515,7 @@ class PlottingPage(QWidget):
     def on_plot_variable_selected(self, index):
         """Update the the values layout based on the selected plot variable."""
         self.clear_input_layout()
+        
         if index >= 0:
             selected_variable = self.plot_variable_combobox.currentText()
             if selected_variable in self.selected_x_values:
@@ -514,11 +523,15 @@ class PlottingPage(QWidget):
             else:
                 self.update_values_layout_pr()
                 self.input_frame.show()
+            self.update_categorical_variable_combobox()
         else:
             self.input_frame.hide()
-        self.update_categorical_variable_combobox()
+            self.categorical_variable_combobox.clear()
+            self.categorical_variable_frame.hide()
 
     def on_categorical_variable_selected(self, index):
+        """Update the values layout based on the selected categorical variable."""
+        self.clear_list_widget()
         self.clear_input_layout()
         self.update_values_layout_pr()
         self.input_frame.show()
@@ -537,6 +550,7 @@ class PlottingPage(QWidget):
     ############# INPUT VALUES #############
     def update_values_layout_pr(self):
         """Update the values layout based on the selected variables."""
+        self.clear_list_widget()
         variables = self.selected_y_values + self.selected_x_values
 
         longest_variable = max(variables, key=len, default="")
@@ -578,7 +592,9 @@ class PlottingPage(QWidget):
                 row_layout.addWidget(label)
                 row_layout.addWidget(list_widget)
                 self.values_layout.addRow(row_layout)
+
                 self.input_fields[variable] = (label, list_widget)
+                self.current_list_widget = list_widget
 
             elif var_type == "nominal" or (var_type == "ordinal" and "options" in self.metadata_dict[variable]):
                 options = self.metadata_dict[variable].get("options", [])
@@ -638,6 +654,11 @@ class PlottingPage(QWidget):
                 QMessageBox.warning(None, "Error", f"Invalid variable type for {variable}: {var_type}")
 
             self.add_custom_spacing(self.values_layout, 3)
+
+    def clear_list_widget(self):
+        if self.current_list_widget:
+            self.current_list_widget.deleteLater()
+            self.current_list_widget = None
 
     def limit_selection(self, list_widget, max_items):
         """Limit the selection in the list_widget to a maximum number of items."""
@@ -720,38 +741,14 @@ class PlottingPage(QWidget):
                 return
 
             try:
+                self.reset_configuration()
+                self.update_configuration()
+                self.write_configuration()
                 self.plot_probabilities()
             except Exception as e:
                 QMessageBox.critical(None, "Error", f"Failed to plot probabilities: {str(e)}")
         else:
             QMessageBox.warning(None, "Error", "No plot generated. No numeric variable with multiple values to plot.")
-
-    def parse_input_value(self, value):
-        """Parse the input value string for non-nominal types, supporting range (a:b) input."""
-        if isinstance(value, dict) and 'start' in value:
-            start_str = value['start']
-            end_str = value['end']
-            try:
-                start_val = float(start_str)
-                if not end_str:
-                    return [start_val]
-                else:
-                    end_val = float(end_str)
-                    num_points = int(abs(end_val - start_val)) + 1
-                    if start_val.is_integer() and end_val.is_integer():
-                        value_list = list(range(int(start_val), int(end_val) + 1))
-                    else:
-                        value_list = np.linspace(start_val, end_val, num=num_points).tolist()
-                    return value_list
-            except ValueError:
-                QMessageBox.warning(None, "Error", f"Invalid numeric input: {start_str} or {end_str}")
-                return []
-        else:
-            value_string = value
-            if isinstance(value_string, str):
-                return [value_string]
-            else:
-                return value_string
     
     def all_values_filled(self):
         """Check if all selected Y and X variables have been assigned values."""
@@ -786,10 +783,8 @@ class PlottingPage(QWidget):
         parsed_values = {}
         max_length = 0
 
-        # First, parse and validate the inputs, and determine the maximum length
         for var_name, value in values.items():
             if isinstance(value, dict) and 'start' in value:
-                # Handle ranged inputs
                 start_str = value['start']
                 end_str = value['end']
                 try:
@@ -825,13 +820,11 @@ class PlottingPage(QWidget):
             if len(variable_value) > max_length:
                 max_length = len(variable_value)
 
-        # Now, expand the shorter arrays to match the maximum length
         for var_name, variable_value in parsed_values.items():
             if len(variable_value) < max_length:
                 repeats = max_length // len(variable_value) + (max_length % len(variable_value) > 0)
                 parsed_values[var_name] = (variable_value * repeats)[:max_length]
 
-        # Create DataFrame from the parsed values
         df = pd.DataFrame(parsed_values)
         return df
 
@@ -861,7 +854,6 @@ class PlottingPage(QWidget):
 
     def plot_probabilities(self):
         """Plot the probabilities and uncertainty for multiple variables."""
-        self.load_configuration()
         self.clear_plot()
 
         figure = Figure()
@@ -874,12 +866,18 @@ class PlottingPage(QWidget):
         probabilities_quantiles = np.array(self.probabilities_quantiles)
 
         num_variables = probabilities_values.shape[1]
-        colors = ['blue', 'green', 'orange', 'purple', 'brown', 'red']
-        uncertainty_colors = ['lightblue', 'lightgreen', 'peachpuff', 'thistle', 'wheat', 'lightcoral']
+
+        plot_variable = self.plot_variable_combobox.currentText()
+        if plot_variable in self.Y.columns:
+            x_values = self.Y[plot_variable]
+        elif plot_variable in self.X.columns:
+            x_values = self.X[plot_variable]
+        else:
+            QMessageBox.warning(None, "Error", f"The selected plot variable '{plot_variable}' was not found in Y or X.")
+            return
 
         for i in range(num_variables):
-            y_column = self.Y.columns[0]
-            x_values = self.Y[y_column]
+            plot_key = f"plot_{i+1}"
 
             if probabilities_quantiles.ndim == 3:
                 lower_quantiles = probabilities_quantiles[:, i, 0]
@@ -888,21 +886,18 @@ class PlottingPage(QWidget):
                 lower_quantiles = probabilities_quantiles[:, 0]
                 upper_quantiles = probabilities_quantiles[:, -1]
             else:
-                lower_quantiles = np.zeros(self.Y.shape[0])
-                upper_quantiles = np.zeros(self.Y.shape[0])
-
-            color = colors[i % len(colors)]
-            uncertainty_color = uncertainty_colors[i % len(uncertainty_colors)]
+                lower_quantiles = np.zeros(len(x_values))
+                upper_quantiles = np.zeros(len(x_values))
 
             ax.fill_between(
                 x_values, 
                 lower_quantiles, 
                 upper_quantiles,
-                color=uncertainty_color, 
-                alpha=self.alpha_uncertainty_area, 
-                edgecolor='darkblue', 
-                linewidth=self.width_uncertainty_area,
-                label=f'{y_column} Uncertainty'
+                color=self.config[plot_key]['color_uncertainty_area'], 
+                alpha=self.config['shared']['alpha_uncertainty_area'], 
+                edgecolor=self.config[plot_key]['color_probability_curve'], 
+                linewidth=self.config['shared']['width_uncertainty_area'],
+                label=self.config[plot_key]['uncertantity_label']
             )
 
             try:
@@ -916,76 +911,213 @@ class PlottingPage(QWidget):
             ax.plot(
                 x_smooth, 
                 prob_smooth, 
-                color=color, 
-                linewidth=self.width_probability_curve, 
+                color=self.config[plot_key]['color_probability_curve'], 
+                linewidth=self.config['shared']['width_probability_curve'], 
                 linestyle='-', 
-                label=f'{y_column} Probability'
+                label=self.config[plot_key]['probability_label']
             )
-
-        ax.axvline(x=0, color=self.color_zero_change_line, linestyle='--', linewidth=self.width_zero_change_line, label='0-change Line')
-        ax.set_xlabel('Variable Values')
-        ax.set_ylabel('Probability')
+        if self.config['shared'].get('draw_x_change_line', True):
+            ax.axvline(
+                x=self.config['shared']['x_line_value'], 
+                color=self.config['shared']['color_x_change_line'], 
+                linestyle='--', linewidth=self.config['shared']['width_x_change_line'], 
+                label=self.config['shared']['x_line_label']
+            )
+        ax.set_xlabel(self.config['shared']['x_label'])
+        ax.set_ylabel(self.config['shared']['y_label'])
         ax.legend()
 
         self.plot_canvas.draw()
-        self.plot = True
 
+    def on_configure_button_clicked(self):
+        """Open the configuration dialog to change plot settings."""
+        self.load_configuration()
+        self.configure_plot()
+        if self.probabilities_values is not None and self.probabilities_quantiles is not None:
+            self.plot_probabilities()
+    
     def load_configuration(self):
         """Load configuration from JSON file"""
-        if os.path.exists(USER_CONFIG_PATH):
-            with open(USER_CONFIG_PATH, 'r') as f:
-                config = json.load(f)
-                self.color_probability_curve = config.get('plot_colors').get('probability_curve')
-                self.color_uncertainty_area = config.get('plot_colors').get('uncertainty_area')
-                self.color_zero_change_line = config.get('plot_colors').get('zero_change_line')
-                self.width_probability_curve = config.get('line_widths').get('probability_curve')
-                self.width_zero_change_line = config.get('line_widths').get('zero_change_line')
-                self.width_uncertainty_area = config.get('line_widths').get('uncertainty_area')
-                self.alpha_uncertainty_area = config.get('alpha_values').get('uncertainty_area')
-                self.xlabel = config.get('x_label')
-                self.ylabel = config.get('y_label')
+        with open(USER_CONFIG_PATH, 'r') as f:
+            self.config = json.load(f)
+
+    def write_configuration(self):
+        """Write configuration to JSON file"""
+        with open(USER_CONFIG_PATH, 'w') as f:
+            json.dump(self.config, f)
+
+    def reset_configuration(self):
+        with importlib.resources.open_text('pages.plotting', 'default_config.json') as f:
+            self.config = json.load(f)
+
+    def update_configuration(self):
+        """Update the configuration (x_label and probability labels) dynamically based on current selections and data."""
+        plot_variable = self.plot_variable_combobox.currentText()
+        categorical_variable = self.categorical_variable_combobox.currentText()
+        if categorical_variable == "No":
+            categorical_variable = None
+
+        self.config['shared']['x_label'] = plot_variable
+
+        num_variables = self.probabilities_values.shape[1]
+
+        other_values = []
+        all_selected_vars = self.selected_y_values + self.selected_x_values
+        for var in all_selected_vars:
+            if var == plot_variable or var == categorical_variable:
+                continue
+            val = self.variable_values.get(var)
+            if isinstance(val, list):
+                if len(val) == 1:
+                    other_values.append(val[0])
+                else:
+                    other_values.append(", ".join(val))
+            elif isinstance(val, dict):
+                start_val = val.get('start', '')
+                end_val = val.get('end', '')
+                if end_val:
+                    other_values.append(f"{start_val}-{end_val}")
+                else:
+                    other_values.append(str(start_val))
+            else:
+                other_values.append(str(val))
+
+        line_labels = []
+        if categorical_variable and categorical_variable in self.variable_values:
+            categorical_values = self.variable_values[categorical_variable]
+            for cat_val in categorical_values:
+                line_label_parts = list(other_values) + [cat_val]
+                line_labels.append(", ".join(line_label_parts))
         else:
-            # Default values
-            self.color_probability_curve = 'blue'
-            self.color_uncertainty_area = 'lightblue'
-            self.color_zero_change_line = 'red'
-            self.width_probability_curve = 2
-            self.width_zero_change_line = 2
-            self.width_uncertainty_area = 2
-            self.alpha_uncertainty_area = 0.3
-            self.xlabel = 'X-axis Label'
-            self.ylabel = 'Y-axis Label'
+            if num_variables > 1:
+                if plot_variable in self.Y.columns:
+                    x_line_values = self.Y[plot_variable].unique()
+                elif plot_variable in self.X.columns:
+                    x_line_values = self.X[plot_variable].unique()
+                else:
+                    x_line_values = ["Line " + str(i+1) for i in range(num_variables)]
+
+                x_line_values = list(map(str, x_line_values))
+                for val in x_line_values:
+                    line_label_parts = list(other_values) + [val]
+                    line_labels.append(", ".join(line_label_parts))
+            else:
+                label = ", ".join(other_values) if other_values else "Line 1"
+                line_labels.append(label)
+
+        for i, label in enumerate(line_labels, start=1):
+            plot_key = f"plot_{i}"
+            if plot_key in self.config:
+                self.config[plot_key]['probability_label'] = label
 
     def configure_plot(self):
         """Open a dialog to configure plot settings."""
-        self.load_configuration()
-
         dialog = QDialog(self)
         dialog.setMinimumWidth(300)
         dialog.setWindowTitle("Configure Plot Settings")
 
         layout = QFormLayout()
 
-        self.color_probability_curve_edit = QLineEdit(self.color_probability_curve)
-        self.color_uncertainty_area_edit = QLineEdit(self.color_uncertainty_area)
-        self.color_zero_change_line_edit = QLineEdit(self.color_zero_change_line)
-        self.width_probability_curve_edit = QLineEdit(str(self.width_probability_curve))
-        self.width_zero_change_line_edit = QLineEdit(str(self.width_zero_change_line))
-        self.width_uncertainty_area_edit = QLineEdit(str(self.width_uncertainty_area))
-        self.alpha_uncertainty_area_edit = QLineEdit(str(self.alpha_uncertainty_area))
-        self.xlabel_edit = QLineEdit(self.xlabel)
-        self.ylabel_edit = QLineEdit(self.ylabel)
+        # Predefined color options
+        color_options = ["blue", "green", "red", "black", "yellow", "cyan", "magenta"]
+        lighter_color_options = ["lightblue", "lightgreen", "lightsalmon", "lightgray", "lightyellow", "lightcyan", "lightpink"]
 
-        layout.addRow("Probability Curve Color:", self.color_probability_curve_edit)
-        layout.addRow("Uncertainty Area Color:", self.color_uncertainty_area_edit)
-        layout.addRow("Zero Change Line Color:", self.color_zero_change_line_edit)
-        layout.addRow("Probability Curve Width:", self.width_probability_curve_edit)
-        layout.addRow("Zero Change Line Width:", self.width_zero_change_line_edit)
-        layout.addRow("Uncertainty Area Width:", self.width_uncertainty_area_edit)
+        # Shared Fields
+        self.width_probability_curve_edit = QLineEdit(str(self.config['shared']['width_probability_curve']))
+        self.width_uncertainty_area_edit = QLineEdit(str(self.config['shared']['width_uncertainty_area']))
+        self.alpha_uncertainty_area_edit = QLineEdit(str(self.config['shared']['alpha_uncertainty_area']))
+        self.xlabel_edit = QLineEdit(str(self.config['shared']['x_label']))
+        self.ylabel_edit = QLineEdit(str(self.config['shared']['y_label']))
+
+        self.draw_x_change_line_checkbox = QCheckBox()
+        self.draw_x_change_line_checkbox.setChecked(self.config['shared'].get('draw_x_change_line', True))
+        self.x_line_value_edit = QLineEdit(str(self.config['shared']['x_line_value']))
+
+        # ComboBox for color_x_change_line
+        self.color_x_change_line_combo = QComboBox()
+        self.color_x_change_line_combo.addItems(color_options)
+        current_x_line_color = self.config['shared']['color_x_change_line']
+        if current_x_line_color not in color_options:
+            self.color_x_change_line_combo.addItem(current_x_line_color)
+        self.color_x_change_line_combo.setCurrentText(current_x_line_color)
+
+        self.width_x_change_line_edit = QLineEdit(str(self.config['shared']['width_x_change_line']))
+        self.x_line_label_edit = QLineEdit(str(self.config['shared']['x_line_label']))
+
+        general_label = QLabel("General")
+        general_label.setObjectName("sectionLabel")
+        layout.addRow(general_label, QLabel())
         layout.addRow("Uncertainty Area Alpha:", self.alpha_uncertainty_area_edit)
-        layout.addRow("X-axis Label:", self.xlabel_edit)
-        layout.addRow("Y-axis Label:", self.ylabel_edit)
+        layout.addRow("Uncertainty Area Width:", self.width_uncertainty_area_edit)
+        layout.addRow("Probability Curve Width:", self.width_probability_curve_edit)
+        layout.addRow("X-label:", self.xlabel_edit)
+        layout.addRow("Y-label:", self.ylabel_edit)
+        layout.addRow("", QLabel())
 
+        change_line_label = QLabel("X-change Line")
+        change_line_label.setObjectName("sectionLabel")
+        layout.addRow(change_line_label, QLabel())
+        layout.addRow("Draw X-change Line:", self.draw_x_change_line_checkbox)
+        layout.addRow("X-value:", self.x_line_value_edit)
+        layout.addRow("Color:", self.color_x_change_line_combo)
+        layout.addRow("Line Width:", self.width_x_change_line_edit)
+        layout.addRow("Label:", self.x_line_label_edit)
+        layout.addRow("", QLabel())
+
+        # For plot_1
+        self.first_color_probability_curve_combo = QComboBox()
+        self.first_color_probability_curve_combo.addItems(color_options)
+        cpc_1 = self.config['plot_1']['color_probability_curve']
+        if cpc_1 not in color_options:
+            self.first_color_probability_curve_combo.addItem(cpc_1)
+        self.first_color_probability_curve_combo.setCurrentText(cpc_1)
+
+        self.first_color_uncertainty_area_combo = QComboBox()
+        self.first_color_uncertainty_area_combo.addItems(lighter_color_options)
+        cua_1 = self.config['plot_1']['color_uncertainty_area']
+        if cua_1 not in lighter_color_options:
+            self.first_color_uncertainty_area_combo.addItem(cua_1)
+        self.first_color_uncertainty_area_combo.setCurrentText(cua_1)
+
+        self.first_probability_label_edit = QLineEdit(self.config['plot_1']['probability_label'])
+        self.first_uncertantity_label_edit = QLineEdit(self.config['plot_1']['uncertantity_label'])
+
+        first_label = QLabel("1st Plot")
+        first_label.setObjectName("sectionLabel")
+        layout.addRow(first_label, QLabel())
+        layout.addRow("Probability Curve Color:", self.first_color_probability_curve_combo)
+        layout.addRow("Uncertainty Area Color:", self.first_color_uncertainty_area_combo)
+        layout.addRow("Probability Label:", self.first_probability_label_edit)
+        layout.addRow("Uncertainty Label:", self.first_uncertantity_label_edit)
+        layout.addRow("", QLabel())
+
+        # For plot_2
+        self.second_color_probability_curve_combo = QComboBox()
+        self.second_color_probability_curve_combo.addItems(color_options)
+        cpc_2 = self.config['plot_2']['color_probability_curve']
+        if cpc_2 not in color_options:
+            self.second_color_probability_curve_combo.addItem(cpc_2)
+        self.second_color_probability_curve_combo.setCurrentText(cpc_2)
+
+        self.second_color_uncertainty_area_combo = QComboBox()
+        self.second_color_uncertainty_area_combo.addItems(lighter_color_options)
+        cua_2 = self.config['plot_2']['color_uncertainty_area']
+        if cua_2 not in lighter_color_options:
+            self.second_color_uncertainty_area_combo.addItem(cua_2)
+        self.second_color_uncertainty_area_combo.setCurrentText(cua_2)
+
+        self.second_probability_label_edit = QLineEdit(self.config['plot_2']['probability_label'])
+        self.second_uncertantity_label_edit = QLineEdit(self.config['plot_2']['uncertantity_label'])
+
+        second_label = QLabel("2nd Plot")
+        second_label.setObjectName("sectionLabel")
+        layout.addRow(second_label, QLabel())
+        layout.addRow("Probability Curve Color:", self.second_color_probability_curve_combo)
+        layout.addRow("Uncertainty Area Color:", self.second_color_uncertainty_area_combo)
+        layout.addRow("Probability Label:", self.second_probability_label_edit)
+        layout.addRow("Uncertainty Label:", self.second_uncertantity_label_edit)
+
+        # Buttons
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         save_button = QPushButton("Save")
@@ -997,40 +1129,71 @@ class PlottingPage(QWidget):
         dialog.setLayout(layout)
         dialog.exec_()
 
-        if self.plot:
-            self.plot_probabilities()
-
     def save_configuration(self, dialog):
-        self.color_probability_curve = self.color_probability_curve_edit.text()
-        self.color_uncertainty_area = self.color_uncertainty_area_edit.text()
-        self.color_zero_change_line = self.color_zero_change_line_edit.text()
-        self.width_probability_curve = int(self.width_probability_curve_edit.text())
-        self.width_zero_change_line = int(self.width_zero_change_line_edit.text())
-        self.width_uncertainty_area = int(self.width_uncertainty_area_edit.text())
-        self.alpha_uncertainty_area = float(self.alpha_uncertainty_area_edit.text())
-        self.xlabel = self.xlabel_edit.text()
-        self.ylabel = self.ylabel_edit.text()
+        try:
+            config = {
+                "shared": {
+                    "x_label": self.xlabel_edit.text(),
+                    "y_label": self.ylabel_edit.text(),
+                    "color_x_change_line": self.color_x_change_line_combo.currentText(),
+                    "width_probability_curve": self.validate_and_parse_float(self.width_probability_curve_edit.text(), "Probability Curve Width"),
+                    "width_x_change_line": self.validate_and_parse_float(self.width_x_change_line_edit.text(), "Line Width"),
+                    "width_uncertainty_area": self.validate_and_parse_float(self.width_uncertainty_area_edit.text(), "Uncertainty Area Width"),
+                    "alpha_uncertainty_area": self.validate_and_parse_float(self.alpha_uncertainty_area_edit.text(), "Uncertainty Area Alpha"),
+                    "x_line_value": self.validate_and_parse_float(self.x_line_value_edit.text(), "X-value"),
+                    "draw_x_change_line": self.draw_x_change_line_checkbox.isChecked(),
+                    "x_line_label": self.x_line_label_edit.text()
+                },
+                "plot_1": {
+                    "color_probability_curve": self.first_color_probability_curve_combo.currentText(),
+                    "color_uncertainty_area": self.first_color_uncertainty_area_combo.currentText(),
+                    "probability_label": self.first_probability_label_edit.text(),
+                    "uncertantity_label": self.first_uncertantity_label_edit.text()
+                },
+                "plot_2": {
+                    "color_probability_curve": self.second_color_probability_curve_combo.currentText(),
+                    "color_uncertainty_area": self.second_color_uncertainty_area_combo.currentText(),
+                    "probability_label": self.second_probability_label_edit.text(),
+                    "uncertantity_label": self.second_uncertantity_label_edit.text()
+                }
+            }
 
-        config = {
-            "plot_colors": {
-                "probability_curve": self.color_probability_curve,
-                "uncertainty_area": self.color_uncertainty_area,
-                "zero_change_line": self.color_zero_change_line
-            },
-            "line_widths": {
-                "probability_curve": self.width_probability_curve,
-                "zero_change_line": self.width_zero_change_line,
-                "uncertainty_area": self.width_uncertainty_area
-            },
-            "alpha_values": {
-                "uncertainty_area": self.alpha_uncertainty_area
-            },
-            "x_label": self.xlabel,
-            "y_label": self.ylabel
-        }
-        with open(USER_CONFIG_PATH, 'w') as f:
-            json.dump(config, f)
-        dialog.accept()
+            if not self.validate_configuration(config):
+                return
+            
+            self.config = config
+            self.write_configuration()
+            dialog.accept()
+
+        except ValueError as e:
+            QMessageBox.warning(self, "Invalid Input", str(e))
+            return
+
+    def validate_and_parse_float(self, value, field_name):
+        try:
+            return float(value)
+        except ValueError:
+            raise ValueError(f"Invalid value for {field_name}: {value}. Please enter a numeric value.")
+
+    def validate_configuration(self, config):
+        # Check numeric fields
+        if config['shared']['width_probability_curve'] <= 0:
+            QMessageBox.warning(self, "Invalid Input", "'Probability Curve Width' must be positive.")
+            return False
+        
+        if config['shared']['width_uncertainty_area'] < 0:
+            QMessageBox.warning(self, "Invalid Input", "'Uncertainty Area Width' cannot be negative.")
+            return False
+        
+        if config['shared']['alpha_uncertainty_area'] < 0 or config['shared']['alpha_uncertainty_area'] > 1:
+            QMessageBox.warning(self, "Invalid Input", "'Uncertainty Area Alpha' must be between 0 and 1.")
+            return False
+
+        if config['shared']['width_x_change_line'] < 0:
+            QMessageBox.warning(self, "Invalid Input", "X-change 'Line Width' cannot be negative.")
+            return False
+
+        return True
 
     def download_plot(self):
         if self.plot_canvas is None:
@@ -1055,11 +1218,13 @@ class PlottingPage(QWidget):
 
     def clear_plot(self):
         """Clear the plot from the canvas."""
-        if self.plot:
-            self.plot_layout.removeWidget(self.plot_canvas)
-            self.plot_canvas.deleteLater()
-            self.plot_canvas = None
-            self.plot = False
+        try:
+            if self.plot_canvas is not None:
+                self.plot_layout.removeWidget(self.plot_canvas)
+                self.plot_canvas.deleteLater()
+                self.plot_canvas = None
+        except Exception:
+            pass
 
     ############# CLEAR ALL #############
     def clear_all(self):
@@ -1083,6 +1248,9 @@ class PlottingPage(QWidget):
         
         self.categorical_variable_frame.hide()
         self.categorical_variable_combobox.clear()
+
+        self.probabilities_values = None
+        self.probabilities_quantiles = None
 
         self.clear_input_layout()
         self.update_plot_title()
