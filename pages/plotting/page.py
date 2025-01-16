@@ -3,14 +3,13 @@ import json
 import numpy as np
 import pandas as pd
 import importlib.resources
-from itertools import product
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, 
                                 QComboBox, QListWidget, QFileDialog, QAbstractItemView, QFormLayout, QLineEdit, 
                                 QMessageBox, QSizePolicy, QAbstractItemView, QDialog, QSpacerItem, QCheckBox)
 from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from r_integration.inferno_functions import run_Pr
+from r_integration.inferno_functions import run_Pr, run_tailPr
 from scipy.interpolate import make_interp_spline
 
 # Define the base directory paths (consistent with file_manager.py)
@@ -40,6 +39,7 @@ class PlottingPage(QWidget):
         self.config = {}
         self.probabilities_values = None
         self.probabilities_quantiles = None
+        self.selected_func = None
         self.reset_configuration()
         self.write_configuration()
 
@@ -87,23 +87,62 @@ class PlottingPage(QWidget):
 
         left_layout.addWidget(self.learn_frame, alignment=Qt.AlignTop)
 
+        # Select probability function
+        self.probability_function_frame = QFrame()
+        self.probability_function_frame.setObjectName("probabilityFunctionFrame")
+        self.probability_function_frame.hide()
+        probability_function_layout = QHBoxLayout(self.probability_function_frame)
+        probability_function_layout.setContentsMargins(0, 0, 0, 0) # left, top, right, bottom
+        probability_function_layout.setSpacing(5)
+
+        probability_function_label = QLabel("Select a probability function:")
+        self.probability_function_combobox = CustomComboBox()
+        self.probability_function_combobox.addItems(["Pr", "tailPr"])
+        self.probability_function_combobox.setCurrentIndex(-1)
+
+        self.probability_function_combobox.setItemData(
+            0, 
+            ("Pr: Calculates P(Y | X, data). This function computes the probability of a range of values for a numeric Y-variable \n"
+            "against specified values of X-variables. The results include quantiles representing the variability in the probabilities \n"
+            "if additional data were available, as well as samples of possible probability values. In the plot, the defined range for the \n"
+            "numeric Y-variable is displayed on the X-axis, and the probability values are plotted on the Y-axis."),
+            Qt.ToolTipRole
+        )
+
+        self.probability_function_combobox.setItemData(
+            1, 
+            ("TailPr: Calculates P(Y <= y | X, data) or P(Y > y | X, data). This function computes cumulative probabilities \n"
+            "for a specific value of a numeric Y-variable against specified X-variables. The results include quantiles showing variability \n"
+            "in cumulative probabilities if additional data were available, as well as samples of possible values. The plot displays the numeric \n"
+            "X-variable on the X-axis and the cumulative probabilities on the Y-axis."),
+            Qt.ToolTipRole
+        )
+
+        self.probability_function_combobox.currentIndexChanged.connect(self.on_probability_function_selected)
+
+        probability_function_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.probability_function_combobox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        probability_function_layout.addWidget(probability_function_label)
+        probability_function_layout.addWidget(self.probability_function_combobox)
+        left_layout.addWidget(self.probability_function_frame, alignment=Qt.AlignTop)
+
         # Variable selection frame
         self.variable_selection_frame = QFrame()
         self.variable_selection_frame.setObjectName("variableSelectionFrame")
         self.variable_selection_frame.hide()
         variable_selection_layout = QVBoxLayout(self.variable_selection_frame)
 
-        Y_label_widget = QLabel("Select target Y-variables:")
-        variable_selection_layout.addWidget(Y_label_widget)
+        self.Y_label_widget = QLabel("")
+        variable_selection_layout.addWidget(self.Y_label_widget)
 
         self.Y_listwidget = QListWidget()
-        self.Y_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
         self.Y_listwidget.itemSelectionChanged.connect(self.on_Y_variable_selected)
         variable_selection_layout.addWidget(self.Y_listwidget)
 
         variable_selection_layout.addSpacing(20)
         
-        self.X_label_widget = QLabel("Select conditional X-variables (optional):")
+        self.X_label_widget = QLabel("")
         self.X_label_widget.hide()
         variable_selection_layout.addWidget(self.X_label_widget)
 
@@ -123,7 +162,7 @@ class PlottingPage(QWidget):
         plot_variable_layout.setContentsMargins(0, 0, 0, 0)
         plot_variable_layout.setSpacing(5)
 
-        plot_variable_label = QLabel("Select the variable to plot against the X-axis:")
+        plot_variable_label = QLabel("Select the variable to plot against the X-axis:") # TODO: oppdater tekst
         self.plot_variable_combobox = CustomComboBox()
         self.plot_variable_combobox.currentIndexChanged.connect(self.on_plot_variable_selected)
 
@@ -177,7 +216,7 @@ class PlottingPage(QWidget):
         button_layout.setContentsMargins(0, 10, 0, 10)  # left, top, right, bottom
 
         create_plot_button = QPushButton("Generate Plot")
-        create_plot_button.clicked.connect(self.run_pr_function)
+        create_plot_button.clicked.connect(self.on_generate_plot_button_clicked)
         create_plot_button.setFixedWidth(150)
         button_layout.addWidget(create_plot_button)
 
@@ -275,21 +314,60 @@ class PlottingPage(QWidget):
         x_values = self.get_input_value(self.selected_x_values)
         data = self.pr_learnt_combobox.currentText()
 
-        y_labels = ", ".join([f"{label}={self.format_value(y_values.get(label, '')) or 'y'}" for label in self.selected_y_values])
-        x_labels = ", ".join([f"{label}={self.format_value(x_values.get(label, '')) or 'x'}" for label in self.selected_x_values])
+        if self.selected_func == "tailPr":
+            formatted_y_labels = []
+            for y_var in self.selected_y_values:
+                y_dict = y_values.get(y_var, {})
+                inequality = y_dict.get('inequality', '')
+                val = y_dict.get('value', '').strip()
+                if inequality and val:
+                    formatted_y_labels.append(f"{y_var}{inequality}{val}")
+                else:
+                    formatted_y_labels.append(f"{y_var}=y")
 
-        if y_labels and x_labels:
-            title = f"P({y_labels} | {x_labels}, {data})"
-        elif y_labels:
-            title = f"P({y_labels} | {data})"
-        elif x_labels:
-            title = f"P(Y=y | {x_labels}, {data})"
-        elif data:
-            title = f"P(Y=y | X=x, {data})"
+            x_labels = ", ".join([
+                f"{label}={self.format_value(x_values.get(label, '')) or 'x'}"
+                for label in self.selected_x_values
+            ])
+
+            y_labels_str = ", ".join(formatted_y_labels)
+
+            if y_labels_str and x_labels:
+                title = f"P({y_labels_str} | {x_labels}, {data})"
+            elif y_labels_str:
+                title = f"P({y_labels_str} | {data})"
+            elif x_labels:
+                title = f"P(Y=y | {x_labels}, {data})"
+            elif data:
+                title = f"P(Y=y | X=x, {data})"
+            else:
+                title = "P(Y=y | X=x, data)"
+
+        elif self.selected_func == "Pr":
+            y_labels = ", ".join(
+                f"{label}={self.format_value(y_values.get(label, '')) or 'y'}"
+                for label in self.selected_y_values
+            )
+            x_labels = ", ".join(
+                f"{label}={self.format_value(x_values.get(label, '')) or 'x'}"
+                for label in self.selected_x_values
+            )
+
+            if y_labels and x_labels:
+                title = f"P({y_labels} | {x_labels}, {data})"
+            elif y_labels:
+                title = f"P({y_labels} | {data})"
+            elif x_labels:
+                title = f"P(Y=y | {x_labels}, {data})"
+            elif data:
+                title = f"P(Y=y | X=x, {data})"
+            else:
+                title = "P(Y=y | X=x, data)"
         else:
             title = "P(Y=y | X=x, data)"
 
         self.plot_title.setText(title)
+
 
     def format_value(self, value):
         if isinstance(value, dict):
@@ -323,10 +401,31 @@ class PlottingPage(QWidget):
         self.pr_learnt_combobox.currentIndexChanged.connect(self.on_learnt_folder_selected) # Reconnect the signal
 
     def on_learnt_folder_selected(self, index):
-        """Update the data value when a learnt folder is selected."""
+        """Display the probability function frame when a learnt folder is selected."""
         if index >= 0:
             self.data = self.pr_learnt_combobox.currentText()
-            self.load_metadata_pr()
+            self.probability_function_frame.show()
+        else:
+            self.data = "data"
+            self.probability_function_frame.hide()
+        self.update_plot_title()
+
+    ############# PROBABILITY FUNCTION #############
+    def on_probability_function_selected(self, index):
+        """Update the UI based on the selected probability function."""
+        if index >= 0:
+
+            self.selected_func = self.probability_function_combobox.currentText()
+            if self.selected_func == "tailPr":
+                self.Y_listwidget.setSelectionMode(QAbstractItemView.SingleSelection)
+                self.Y_label_widget.setText("Select target Y-variable:")
+                self.X_label_widget.setText("Select conditional X-variable(s):")
+            elif self.selected_func == "Pr":
+                self.Y_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
+                self.Y_label_widget.setText("Select target Y-variable(s):")
+                self.X_label_widget.setText("Select conditional X-variable(s) (optional):")
+
+            self.load_variables_into_lists()
             self.variable_selection_frame.show()
 
             self.Y_listwidget.clearSelection()
@@ -336,13 +435,10 @@ class PlottingPage(QWidget):
             self.selected_x_values = []
 
             self.clear_input_layout()
-        else:
-            self.data = "data"
-        self.update_plot_title()
 
     ############# VARIABLE SELECTION #############
-    def load_metadata_pr(self):
-        """Load variates from the metadata.csv file in the selected learnt folder."""
+    def load_variables_into_lists(self):
+        """Load variates from the metadata.csv file into the list widgets."""
         learnt_folder = self.pr_learnt_combobox.currentText()
         metadata_path = os.path.join(LEARNT_FOLDER, learnt_folder, 'metadata.csv')
 
@@ -352,13 +448,23 @@ class PlottingPage(QWidget):
         
         try:
             self.metadata_df = pd.read_csv(metadata_path)
-
             self.Y_listwidget.clear()
             self.X_listwidget.clear()
 
             variates = self.metadata_df["name"].tolist()
-            self.Y_listwidget.addItems(variates)
-            self.X_listwidget.addItems(variates)
+            for var_name in variates:
+                self.metadata_dict[var_name] = self.get_metadata_for_selected_value(var_name)
+
+            for var_name in variates:
+                var_type = self.metadata_dict[var_name].get("type", "").lower()
+
+                self.X_listwidget.addItem(var_name)
+
+                if self.selected_func == "tailPr":
+                    if var_type == "continuous" or (var_type == "ordinal" and "options" not in self.metadata_dict[var_name]):
+                        self.Y_listwidget.addItem(var_name)
+                else:
+                    self.Y_listwidget.addItem(var_name)
 
             self.adjust_list_widget_height(self.Y_listwidget)
             self.adjust_list_widget_height(self.X_listwidget)
@@ -416,7 +522,10 @@ class PlottingPage(QWidget):
 
         self.selected_y_values = new_selected_y_values
 
-        self.update_selected_variables(added_variables, removed_variables)
+        self.sync_variable_selections(added_variables, removed_variables)
+
+        if self.selected_func == "Pr":
+            self.update_plot_variable_combobox(self.selected_y_values)
 
     def on_X_variable_selected(self):
         """Update the selected X variables and input fields based on the selected items."""
@@ -428,26 +537,54 @@ class PlottingPage(QWidget):
 
         self.selected_x_values = new_selected_x_values
 
-        self.update_selected_variables(added_variables, removed_variables)
+        self.sync_variable_selections(added_variables, removed_variables)
 
-    def update_selected_variables(self, added_variables, removed_variables):
-        """Update the selected variables and input fields based on the added and removed variables."""
-        self.plot_variable_combobox.blockSignals(True)  # Block signals temporarily
+        if self.selected_func == "tailPr":
+            self.update_plot_variable_combobox(self.selected_x_values)
+
+    def update_plot_variable_combobox(self, selected_vars):
+        """Update the plot variable combobox based on the selected function type."""
+        self.plot_variable_combobox.blockSignals(True)
+        self.plot_variable_combobox.clear()
+
+        if not selected_vars:
+            self.plot_variable_frame.hide()
+            self.plot_variable_combobox.blockSignals(False)
+            return
+
+        added_any_numeric = False
+
+        for var in selected_vars:
+            var_type = self.metadata_dict.get(var, {}).get("type", "")
+            if var_type == "continuous" or (var_type == "ordinal" and "options" not in self.metadata_dict[var]):
+                self.plot_variable_combobox.addItem(var)
+                added_any_numeric = True
+
+        self.plot_variable_combobox.setCurrentIndex(-1)
+        self.plot_variable_combobox.blockSignals(False)
+
+        if added_any_numeric:
+            self.plot_variable_frame.show()
+        else:
+            self.plot_variable_frame.hide()
+
+    def sync_variable_selections(self, added_variables, removed_variables):
+        """Update metadata, comboboxes, and UI components in response to changes in selected variables in the list widgets."""
+        self.plot_variable_combobox.blockSignals(True)
 
         for value in added_variables:
             if value not in self.metadata_dict:
                 self.metadata_dict[value] = self.get_metadata_for_selected_value(value)
-                var_type = self.metadata_dict[value].get("type")
-                if var_type == "continuous" or (var_type == "ordinal" and "options" not in self.metadata_dict[value]):
-                    self.plot_variable_combobox.addItem(value)
-                
+        
         for value in removed_variables:
             if value in self.metadata_dict:
                 del self.metadata_dict[value]
-                self.plot_variable_combobox.removeItem(self.plot_variable_combobox.findText(value))
+                idx = self.plot_variable_combobox.findText(value)
+                if idx >= 0:
+                    self.plot_variable_combobox.removeItem(idx)
 
         self.plot_variable_combobox.setCurrentIndex(-1)
-        self.plot_variable_combobox.blockSignals(False)  # Unblock signals after updating
+        self.plot_variable_combobox.blockSignals(False)
 
         if self.plot_variable_combobox.currentIndex() < 0:
             self.categorical_variable_combobox.clear()
@@ -500,10 +637,15 @@ class PlottingPage(QWidget):
 
     def update_X_list_visibility(self):
         """Show or hide the input frame based on the selected Y and X values."""
+        if self.selected_func == "tailPr":
+            self.plot_variable_frame.hide()
+
         if self.Y_listwidget.selectedItems():
             self.X_label_widget.show()
             self.X_listwidget.show()
-            self.plot_variable_frame.show()
+
+            if self.selected_func == "Pr":
+                self.plot_variable_frame.show()
         else:
             self.X_label_widget.hide()
             self.X_listwidget.clearSelection()
@@ -517,12 +659,11 @@ class PlottingPage(QWidget):
         self.clear_input_layout()
         
         if index >= 0:
-            selected_variable = self.plot_variable_combobox.currentText()
-            if selected_variable in self.selected_x_values:
+            if self.selected_func == "tailPr":
                 self.update_values_layout_tailpr()
-            else:
+            elif self.selected_func == "Pr":
                 self.update_values_layout_pr()
-                self.input_frame.show()
+            self.input_frame.show()
             self.update_categorical_variable_combobox()
         else:
             self.input_frame.hide()
@@ -533,7 +674,12 @@ class PlottingPage(QWidget):
         """Update the values layout based on the selected categorical variable."""
         self.clear_list_widget()
         self.clear_input_layout()
-        self.update_values_layout_pr()
+
+        if self.selected_func == "tailPr":
+            self.update_values_layout_tailpr()
+        elif self.selected_func == "Pr":
+            self.update_values_layout_pr()
+
         self.input_frame.show()
 
     def clear_input_layout(self):
@@ -559,8 +705,6 @@ class PlottingPage(QWidget):
 
         plot_variable = self.plot_variable_combobox.currentText()
         categorical_variable = self.categorical_variable_combobox.currentText()
-        if categorical_variable == "No":
-            categorical_variable = None
 
         for variable in variables:
             row_layout = QHBoxLayout()
@@ -610,50 +754,64 @@ class PlottingPage(QWidget):
                 self.input_fields[variable] = (label, input_box)
 
             elif var_type == "continuous" or (var_type == "ordinal" and "options" not in self.metadata_dict[variable]):
-                ranged_layout = QHBoxLayout()
-                ranged_layout.setAlignment(Qt.AlignLeft)
-
-                start_label = QLabel("From ")
-                start_input = QLineEdit()
-                start_input.setObjectName("inputField")
-                start_input.setFixedSize(70, 30)
-                start_input.setPlaceholderText("Enter value")
-                start_input.textChanged.connect(self.value_changed)
-                start_input.setAlignment(Qt.AlignCenter)
-
-                end_label = QLabel(" To ")
-                end_input = QLineEdit()
-                end_input.setObjectName("inputField")
-                end_input.setFixedSize(70, 30)
-
                 if variable == plot_variable:
+                    ranged_layout = QHBoxLayout()
+                    ranged_layout.setAlignment(Qt.AlignLeft)
+
+                    start_label = QLabel("From ")
+                    start_input = QLineEdit()
+                    start_input.setObjectName("inputField")
+                    start_input.setFixedSize(70, 30)
+                    start_input.setPlaceholderText("Enter value")
+                    start_input.textChanged.connect(self.value_changed)
+                    start_input.setAlignment(Qt.AlignCenter)
+
+                    end_label = QLabel(" To ")
+                    end_input = QLineEdit()
+                    end_input.setObjectName("inputField")
+                    end_input.setFixedSize(70, 30)
                     end_input.setPlaceholderText("Enter value")
+                    end_input.textChanged.connect(self.value_changed)
+                    end_input.setAlignment(Qt.AlignCenter)
+
+                    if variable in self.variable_values:
+                        start_val = self.variable_values[variable].get('start', '')
+                        end_val = self.variable_values[variable].get('end', '')
+                        start_input.setText(start_val)
+                        end_input.setText(end_val)
+
+                    ranged_layout.addWidget(start_label)
+                    ranged_layout.addWidget(start_input)
+                    ranged_layout.addWidget(end_label)
+                    ranged_layout.addWidget(end_input)
+                    ranged_layout.addStretch()
+
+                    row_layout.addWidget(label)
+                    row_layout.addLayout(ranged_layout)
+                    self.values_layout.addRow(row_layout)
+                    self.input_fields[variable] = (label, {'start': start_input, 'end': end_input, 'start_label': start_label, 'end_label': end_label})
+
                 else:
-                    end_input.setPlaceholderText("(optional)")
-                end_input.textChanged.connect(self.value_changed)
-                end_input.setAlignment(Qt.AlignCenter)
+                    input_box = QLineEdit()
+                    input_box.setObjectName("inputField")
+                    input_box.setFixedSize(70, 30)
+                    input_box.setPlaceholderText("Enter value")
+                    input_box.textChanged.connect(self.value_changed)
+                    input_box.setAlignment(Qt.AlignCenter)
 
-                if variable in self.variable_values:
-                    start_val = self.variable_values[variable].get('start', '')
-                    end_val = self.variable_values[variable].get('end', '')
-                    start_input.setText(start_val)
-                    end_input.setText(end_val)
+                    if variable in self.variable_values:
+                        input_box.setText(self.variable_values[variable])
 
-                ranged_layout.addWidget(start_label)
-                ranged_layout.addWidget(start_input)
-                ranged_layout.addWidget(end_label)
-                ranged_layout.addWidget(end_input)
-                ranged_layout.addStretch()
-
-                row_layout.addWidget(label)
-                row_layout.addLayout(ranged_layout)
-                self.values_layout.addRow(row_layout)
-                self.input_fields[variable] = (label, {'start': start_input, 'end': end_input, 'start_label': start_label, 'end_label': end_label})
+                    row_layout.addWidget(label)
+                    row_layout.addWidget(input_box)
+                    self.values_layout.addRow(row_layout)
+                    self.input_fields[variable] = (label, input_box)
 
             else:
                 QMessageBox.warning(None, "Error", f"Invalid variable type for {variable}: {var_type}")
 
             self.add_custom_spacing(self.values_layout, 3)
+
 
     def clear_list_widget(self):
         if self.current_list_widget:
@@ -669,9 +827,158 @@ class PlottingPage(QWidget):
             QMessageBox.warning(self, "Selection Limit", f"You can select maximum {max_items} variables.")
 
     def update_values_layout_tailpr(self):
-        """Update the values layout based on the selected variables."""
-        QMessageBox.warning(None, "TODO", "Logic for plotting variables from the X-list is not implemented yet.")
+        """Update the values layout specifically for the TailPr function."""
         self.clear_input_layout()
+
+        variables = self.selected_y_values + self.selected_x_values
+
+        longest_variable = max(variables, key=len, default="")
+        font_metrics = self.fontMetrics()
+        label_width = font_metrics.horizontalAdvance(f"{longest_variable} = ")
+        plot_var = self.plot_variable_combobox.currentText()
+
+        categorical_variable = self.categorical_variable_combobox.currentText()
+
+        for variable in variables:
+            row_layout = QHBoxLayout()
+            row_layout.setContentsMargins(0, 0, 0, 0)
+
+            label = QLabel(f"{variable}")
+            label.setAlignment(Qt.AlignRight)
+            label.setFixedWidth(label_width)
+
+            var_metadata = self.metadata_dict.get(variable, {})
+            var_type = var_metadata.get("type", "")
+
+            if variable in self.selected_y_values:
+                tailpr_y_layout = QHBoxLayout()
+                tailpr_y_layout.setAlignment(Qt.AlignLeft)
+
+                inequality_box = CustomComboBox()
+                inequality_box.addItems(["<", ">", "<=", ">="])
+                inequality_box.currentIndexChanged.connect(self.value_changed)
+
+                value_input = QLineEdit()
+                value_input.setObjectName("inputField")
+                value_input.setFixedSize(70, 30)
+                value_input.setPlaceholderText("Enter numeric value")
+                value_input.textChanged.connect(self.value_changed)
+                value_input.setAlignment(Qt.AlignCenter)
+
+                if variable in self.variable_values:
+                    stored_val = self.variable_values[variable]
+                    if isinstance(stored_val, dict):
+                        inequality = stored_val.get('inequality', '<')
+                        numeric_val = stored_val.get('value', '')
+                        inequality_box.setCurrentText(inequality)
+                        value_input.setText(numeric_val)
+
+                tailpr_y_layout.addWidget(inequality_box)
+                tailpr_y_layout.addWidget(value_input)
+                tailpr_y_layout.addStretch()
+
+                row_layout.addWidget(label)
+                row_layout.addLayout(tailpr_y_layout)
+                self.values_layout.addRow(row_layout)
+
+                self.input_fields[variable] = (
+                    label,
+                    {
+                        'inequality': inequality_box,
+                        'value': value_input
+                    }
+                )
+
+            elif variable == categorical_variable:
+                options = self.metadata_dict[variable].get("options", [])
+                list_widget = QListWidget()
+                list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
+                list_widget.addItems(options)
+                list_widget.itemSelectionChanged.connect(lambda: self.limit_selection(list_widget, 2))
+                if variable in self.variable_values:
+                    selected_options = self.variable_values[variable]
+                    for i in range(list_widget.count()):
+                        item = list_widget.item(i)
+                        if item.text() in selected_options:
+                            item.setSelected(True)
+                list_widget.itemSelectionChanged.connect(self.value_changed)
+                self.adjust_list_widget_height(list_widget)
+                list_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+                list_widget.setObjectName("listWidget")
+
+                row_layout.addWidget(label)
+                row_layout.addWidget(list_widget)
+                self.values_layout.addRow(row_layout)
+
+                self.input_fields[variable] = (label, list_widget)
+                self.current_list_widget = list_widget 
+
+            elif var_type == "nominal" or (var_type == "ordinal" and "options" in var_metadata):
+                options = var_metadata.get("options", [])
+                input_box = CustomComboBox()
+                input_box.addItems(options)
+                if variable in self.variable_values:
+                    input_box.setCurrentText(self.variable_values[variable])
+                input_box.currentIndexChanged.connect(self.value_changed)
+
+                row_layout.addWidget(label)
+                row_layout.addWidget(input_box)
+                self.values_layout.addRow(row_layout)
+                self.input_fields[variable] = (label, input_box)
+
+            elif var_type == "continuous" or (var_type == "ordinal" and "options" not in var_metadata):
+                ranged_layout = QHBoxLayout()
+                ranged_layout.setAlignment(Qt.AlignLeft)
+
+                start_label = QLabel("From ")
+                start_input = QLineEdit()
+                start_input.setObjectName("inputField")
+                start_input.setFixedSize(70, 30)
+                start_input.setPlaceholderText("Enter value")
+                start_input.textChanged.connect(self.value_changed)
+                start_input.setAlignment(Qt.AlignCenter)
+
+                end_label = QLabel(" To ")
+                end_input = QLineEdit()
+                end_input.setObjectName("inputField")
+                end_input.setFixedSize(70, 30)
+                if variable == plot_var:
+                    end_input.setPlaceholderText("Enter value")  # No "(optional)" text for the plot variable
+                else:
+                    end_input.setPlaceholderText("(optional)")
+                end_input.textChanged.connect(self.value_changed)
+                end_input.setAlignment(Qt.AlignCenter)
+
+                if variable in self.variable_values:
+                    stored_vals = self.variable_values[variable]
+                    if isinstance(stored_vals, dict):
+                        start_val = stored_vals.get('start', '')
+                        end_val = stored_vals.get('end', '')
+                        start_input.setText(start_val)
+                        end_input.setText(end_val)
+
+                ranged_layout.addWidget(start_label)
+                ranged_layout.addWidget(start_input)
+                ranged_layout.addWidget(end_label)
+                ranged_layout.addWidget(end_input)
+                ranged_layout.addStretch()
+
+                row_layout.addWidget(label)
+                row_layout.addLayout(ranged_layout)
+                self.values_layout.addRow(row_layout)
+
+                self.input_fields[variable] = (
+                    label,
+                    {
+                        'start': start_input,
+                        'end': end_input
+                    }
+                )
+            else:
+                QMessageBox.warning(self, "Error", f"Invalid variable type for {variable}: {var_type}")
+
+            self.add_custom_spacing(self.values_layout, 3)
+
 
     def add_custom_spacing(self, layout, height):
         """ Adds custom vertical spacing to a QFormLayout using a transparent QWidget with fixed height. """
@@ -703,6 +1010,18 @@ class PlottingPage(QWidget):
                     selected_items = widget.selectedItems()
                     values = [item.text() for item in selected_items]
                     input_values[variable] = values
+                elif isinstance(widget, QLineEdit):
+                    value = widget.text()
+                    input_values[variable] = value
+                elif isinstance(widget, dict) and 'inequality' in widget and 'value' in widget:
+                    inequality_box = widget['inequality']
+                    value_edit = widget['value']
+                    selected_inequality = inequality_box.currentText()
+                    numeric_value = value_edit.text()
+                    input_values[variable] = {
+                        'inequality': selected_inequality,
+                        'value': numeric_value
+                    }
                 else:
                     if isinstance(widget, CustomComboBox):
                         input_values[variable] = widget.currentText()
@@ -721,7 +1040,7 @@ class PlottingPage(QWidget):
         y_values = self.get_input_value(self.selected_y_values)
         x_values = self.get_input_value(self.selected_x_values)
 
-        Y_df  = self.parse_and_validate_input_values(y_values)
+        Y_df = self.parse_and_validate_input_values(y_values)
         if Y_df is None:
             return
         X_df = self.parse_and_validate_input_values(x_values)
@@ -733,23 +1052,105 @@ class PlottingPage(QWidget):
         
         learnt_dir = os.path.join(LEARNT_FOLDER, self.pr_learnt_combobox.currentText())
 
-        if self.should_plot():
-            try:
-                self.probabilities_values, self.probabilities_quantiles = run_Pr(self.Y, learnt_dir, self.X)
-            except Exception as e:
-                QMessageBox.critical(None, "Error", f"Failed to run the Pr function: {str(e)}")
-                return
+        try:
+            self.probabilities_values, self.probabilities_quantiles = run_Pr(self.Y, learnt_dir, self.X)
+            self.reset_configuration()
+            self.update_configuration()
+            self.write_configuration()
+            self.plot_pr_probabilities()
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"Failed to plot probabilities using Pr function: {str(e)}")
 
-            try:
+    def run_tailpr_function(self):
+        """Run the tailPr function and plot the probabilities."""
+        if not self.all_values_filled():
+            QMessageBox.warning(self, "Error", "Please fill out all value-fields...")
+            return
+
+        y_values = self.get_input_value(self.selected_y_values)
+        x_values = self.get_input_value(self.selected_x_values)
+        Y_df = self.parse_and_validate_input_values(y_values)
+        X_df = self.parse_and_validate_input_values(x_values)
+        if Y_df is None or X_df is None:
+            return
+
+        self.Y = Y_df
+        self.X = X_df
+
+        y_variable = self.selected_y_values[0] if self.selected_y_values else None
+        eq, lower_tail = self.determine_inequality(y_variable)
+
+        categorical_variable = self.categorical_variable_combobox.currentText()
+        if categorical_variable == "No":
+            categorical_variable = None
+
+        learnt_dir = os.path.join(LEARNT_FOLDER, self.pr_learnt_combobox.currentText())
+
+        try:
+            if categorical_variable and categorical_variable in self.variable_values:
+                selected_categories = self.variable_values[categorical_variable]
+                if len(selected_categories) > 1:
+                    self.probabilities_values = []
+                    self.probabilities_quantiles = []
+                    for cat_val in selected_categories:
+                        X_single = self.build_single_category_X(X_df, cat_val, categorical_variable)
+
+                        single_values, single_quantiles = run_tailPr(self.Y, learnt_dir, eq, lower_tail, X_single)
+                        self.probabilities_values.append(single_values)
+                        self.probabilities_quantiles.append(single_quantiles)
+
+                    self.reset_configuration()
+                    self.update_configuration()
+                    self.write_configuration()
+                    self.plot_tailpr_probabilities_multi(selected_categories)
+                else:
+                    self.probabilities_values, self.probabilities_quantiles = run_tailPr(self.Y, learnt_dir, eq, lower_tail, self.X)
+                    self.reset_configuration()
+                    self.update_configuration()
+                    self.write_configuration()
+                    self.plot_tailpr_probabilities()
+            else:
+                self.probabilities_values, self.probabilities_quantiles = run_tailPr(self.Y, learnt_dir, eq, lower_tail, self.X)
                 self.reset_configuration()
                 self.update_configuration()
                 self.write_configuration()
-                self.plot_probabilities()
-            except Exception as e:
-                QMessageBox.critical(None, "Error", f"Failed to plot probabilities: {str(e)}")
-        else:
-            QMessageBox.warning(None, "Error", "No plot generated. No numeric variable with multiple values to plot.")
-    
+                self.plot_tailpr_probabilities()
+
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"Failed to plot probabilities using tailPr function: {str(e)}")
+            return
+
+    def build_single_category_X(self, X_df, cat_val, cat_var):
+        X_single = X_df.copy()
+        X_single[cat_var] = cat_val
+        return X_single
+
+    def determine_inequality(self, y_variable):
+        """Determine the inequality logic for the tailPr function."""
+        eq = True
+        lower_tail = True
+
+        if not y_variable:
+            return eq, lower_tail 
+
+        y_value_dict = self.variable_values.get(y_variable, {})
+        inequality = y_value_dict.get('inequality', '<=')
+
+        if inequality == '<':
+            eq = False
+            lower_tail = True
+        elif inequality == '>':
+            eq = False
+            lower_tail = False
+        elif inequality == '<=':
+            eq = True
+            lower_tail = True
+        elif inequality == '>=':
+            eq = True
+            lower_tail = False
+
+        return eq, lower_tail
+
     def all_values_filled(self):
         """Check if all selected Y and X variables have been assigned values."""
         y_values = self.get_input_value(self.selected_y_values)
@@ -763,21 +1164,51 @@ class PlottingPage(QWidget):
             value = y_values.get(variable) or x_values.get(variable)
             if value is None:
                 return False
-            if isinstance(value, dict):
-                start = value.get('start', '').strip()
-                end = value.get('end', '').strip()
-                if not start:
-                    return False
-                if variable == plot_variable and not end:
-                    return False
-            elif isinstance(value, list):
-                if not value and variable == categorical_variable:
-                    return False
+
+            if self.selected_func == "tailPr":
+                if variable in self.selected_y_values:
+                    if not isinstance(value, dict):
+                        return False
+                    inequality = value.get('inequality', '').strip()
+                    numeric_val = value.get('value', '').strip()
+                    if not inequality or not numeric_val:
+                        return False
+                else:
+                    if variable == plot_variable:
+                        if not isinstance(value, dict):
+                            return False
+                        start = value.get('start', '').strip()
+                        end = value.get('end', '').strip()
+                        if not start or not end: 
+                            return False
+                    else:
+                        if isinstance(value, dict) and 'start' in value:
+                            start = value.get('start', '').strip()
+                            if not start:
+                                return False
+                        elif isinstance(value, list):
+                            if not value:
+                                return False
+                        else:
+                            if not value:
+                                return False
+
             else:
-                if not value:
-                    return False
+                if isinstance(value, dict) and 'start' in value and 'end' in value:
+                    start = value.get('start', '').strip()
+                    end = value.get('end', '').strip()
+                    if not start:
+                        return False
+                    if variable == plot_variable and not end:
+                        return False
+                elif isinstance(value, list):
+                    if not value and variable == categorical_variable:
+                        return False
+                else:
+                    if not value:
+                        return False
         return True
-    
+
     def parse_and_validate_input_values(self, values):
         """Parse and validate input values and expand shorter arrays."""
         parsed_values = {}
@@ -807,18 +1238,36 @@ class PlottingPage(QWidget):
                         return None
 
                     num_points = int(abs(end_val - start_val)) + 1
-                    variable_value = list(range(int(start_val), int(end_val) + 1)) if start_val.is_integer() and end_val.is_integer() else np.linspace(start_val, end_val, num=num_points).tolist()
+                    if start_val.is_integer() and end_val.is_integer():
+                        variable_value = list(range(int(start_val), int(end_val) + 1))
+                    else:
+                        variable_value = np.linspace(start_val, end_val, num=num_points).tolist()
+
+            elif isinstance(value, dict) and 'inequality' in value and 'value' in value:
+                numeric_value = value['value']
+                try:
+                    numeric_val = float(numeric_value)
+                except ValueError:
+                    QMessageBox.warning(None, "Error", f"Invalid numeric input for {var_name}: {numeric_value}")
+                    return None
+                variable_value = [numeric_val]
+
             elif isinstance(value, list):
                 if not value:
                     QMessageBox.warning(None, "Error", f"No values selected for {var_name}")
                     return None
                 variable_value = value
+
             else:
-                variable_value = [value]
+                str_val = str(value).strip()
+                try:
+                    float_val = float(str_val)
+                    variable_value = [float_val]
+                except ValueError:
+                    variable_value = [str_val]
 
             parsed_values[var_name] = variable_value
-            if len(variable_value) > max_length:
-                max_length = len(variable_value)
+            max_length = max(max_length, len(variable_value))
 
         for var_name, variable_value in parsed_values.items():
             if len(variable_value) < max_length:
@@ -828,31 +1277,17 @@ class PlottingPage(QWidget):
         df = pd.DataFrame(parsed_values)
         return df
 
-
     ############# PLOTTING #############
-    def should_plot(self):
-        """Check if the plot should be generated based on the input data."""
-        for df in [self.Y, self.X]:
-            for column in df.columns:
-                if len(df[column].unique()) > 1 and pd.api.types.is_numeric_dtype(df[column]):
-                    return True
-        
-        categorical_variable = self.categorical_variable_combobox.currentText()
-        if categorical_variable != "No" and categorical_variable in self.X.columns:
-            if len(self.X[categorical_variable].unique()) > 1:
-                return True
-            
-        for column in self.Y.columns:
-            if len(self.Y[column].unique()) > 1 and pd.api.types.is_numeric_dtype(self.Y[column]):
-                return True
-            
-        for column in self.X.columns:
-            if len(self.X[column].unique()) > 1 and pd.api.types.is_numeric_dtype(self.X[column]):
-                return True
+    def on_generate_plot_button_clicked(self):
+        """Run the appropiate probability function and plot the probabilities."""
+        if self.selected_func == "Pr":
+            self.run_pr_function()
+        elif self.selected_func == "tailPr":
+            self.run_tailpr_function()
+        else:
+            QMessageBox.warning(self, "Error", "Please select a valid probability function.")
 
-        return False
-
-    def plot_probabilities(self):
+    def plot_pr_probabilities(self):
         """Plot the probabilities and uncertainty for multiple variables."""
         self.clear_plot()
 
@@ -889,17 +1324,6 @@ class PlottingPage(QWidget):
                 lower_quantiles = np.zeros(len(x_values))
                 upper_quantiles = np.zeros(len(x_values))
 
-            ax.fill_between(
-                x_values, 
-                lower_quantiles, 
-                upper_quantiles,
-                color=self.config[plot_key]['color_uncertainty_area'], 
-                alpha=self.config['shared']['alpha_uncertainty_area'], 
-                edgecolor=self.config[plot_key]['color_probability_curve'], 
-                linewidth=self.config['shared']['width_uncertainty_area'],
-                label=self.config[plot_key]['uncertantity_label']
-            )
-
             try:
                 spl = make_interp_spline(x_values, probabilities_values[:, i], k=3)
                 x_smooth = np.linspace(x_values.min(), x_values.max(), 500)
@@ -916,17 +1340,207 @@ class PlottingPage(QWidget):
                 linestyle='-', 
                 label=self.config[plot_key]['probability_label']
             )
-        if self.config['shared'].get('draw_x_change_line', True):
-            ax.axvline(
-                x=self.config['shared']['x_line_value'], 
-                color=self.config['shared']['color_x_change_line'], 
-                linestyle='--', linewidth=self.config['shared']['width_x_change_line'], 
-                label=self.config['shared']['x_line_label']
+
+            ax.fill_between(
+                x_values, 
+                lower_quantiles, 
+                upper_quantiles,
+                color=self.config[plot_key]['color_uncertainty_area'], 
+                alpha=self.config['shared']['alpha_uncertainty_area'], 
+                edgecolor=self.config[plot_key]['color_probability_curve'], 
+                linewidth=self.config['shared']['width_uncertainty_area'],
+                label=self.config[plot_key]['uncertantity_label']
             )
+
+        if self.config['x_line'].get('draw', False):
+            ax.axvline(
+                x=self.config['x_line']['value'], 
+                color=self.config['x_line']['color'], 
+                linestyle='--', linewidth=self.config['x_line']['width'], 
+                label=self.config['x_line']['label']
+            )
+
+        if self.config['y_line'].get('draw', False):
+            ax.axhline(
+                y=self.config['y_line']['value'], 
+                color=self.config['y_line']['color'], 
+                linestyle='--', linewidth=self.config['y_line']['width'], 
+                label=self.config['y_line']['label']
+            )
+
         ax.set_xlabel(self.config['shared']['x_label'])
         ax.set_ylabel(self.config['shared']['y_label'])
         ax.legend()
 
+        self.plot_canvas.draw()
+
+    def plot_tailpr_probabilities(self):
+        """Plot cumulative probabilities and quantiles for tailPr."""
+        self.clear_plot()
+
+        figure = Figure()
+        ax = figure.add_subplot(111)
+        self.plot_canvas = FigureCanvas(figure)
+        self.plot_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.plot_layout.insertWidget(1, self.plot_canvas)
+
+        probabilities_values = np.array(self.probabilities_values)
+        probabilities_quantiles = np.array(self.probabilities_quantiles)
+
+        plot_variable = self.plot_variable_combobox.currentText()
+        if plot_variable in self.Y.columns:
+            x_values = self.Y[plot_variable]
+        elif plot_variable in self.X.columns:
+            x_values = self.X[plot_variable]
+        else:
+            QMessageBox.warning(None, "Error", f"The selected plot variable '{plot_variable}' was not found in Y or X.")
+            return
+
+        try:
+            spl = make_interp_spline(x_values, probabilities_values[0, :], k=3)
+            x_smooth = np.linspace(x_values.min(), x_values.max(), 500)
+            prob_smooth = spl(x_smooth)
+        except ValueError:
+            x_smooth = x_values
+            prob_smooth = probabilities_values[0, :]
+
+        if not self.config['plot_1']['probability_label']:
+            self.config['plot_1']['probability_label'] = "Probability"
+        if not self.config['plot_1']['uncertantity_label']:
+            self.config['plot_1']['uncertantity_label'] = "5.5%, 94.5%"
+
+        ax.plot(
+            x_smooth,
+            prob_smooth,
+            color=self.config['plot_1']['color_probability_curve'],
+            linewidth=self.config['shared']['width_probability_curve'],
+            linestyle='-',
+            label=self.config['plot_1']['probability_label']
+        )
+
+        ax.fill_between(
+            x_values,
+            probabilities_quantiles[0, :, 0],
+            probabilities_quantiles[0, :, -1],
+            color=self.config['plot_1']['color_uncertainty_area'],
+            alpha=self.config['shared']['alpha_uncertainty_area'],
+            edgecolor=self.config['plot_1']['color_probability_curve'],
+            linewidth=self.config['shared']['width_uncertainty_area'],
+            label=self.config['plot_1']['uncertantity_label'] 
+        )
+
+        if self.config['x_line'].get('draw', True):
+            ax.axvline(
+                x=self.config['x_line']['value'],
+                color=self.config['x_line']['color'],
+                linestyle='--',
+                linewidth=self.config['x_line']['width'],
+                label=self.config['x_line']['label']
+            )
+
+        if self.config['y_line'].get('draw', True):
+            ax.axhline(
+                y=self.config['y_line']['value'],
+                color=self.config['y_line']['color'],
+                linestyle='--',
+                linewidth=self.config['y_line']['width'],
+                label=self.config['y_line']['label']
+            )
+
+        y_variable = self.selected_y_values[0] if self.selected_y_values else None
+        inequality = self.variable_values.get(y_variable, {}).get('inequality', '')
+        value = self.variable_values.get(y_variable, {}).get('value', '')
+
+        ax.set_xlabel(self.config['shared']['x_label'])
+        ax.set_ylabel(f"Probability of {y_variable} {inequality} {value}")
+        ax.legend()
+
+        self.plot_canvas.draw()
+
+    def plot_tailpr_probabilities_multi(self, categories):
+        """Plot cumulative probabilities and quantiles for tailPr with multiple categories."""
+        self.clear_plot()
+
+        figure = Figure()
+        ax = figure.add_subplot(111)
+        self.plot_canvas = FigureCanvas(figure)
+        self.plot_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.plot_layout.insertWidget(1, self.plot_canvas)
+
+        plot_variable = self.plot_variable_combobox.currentText()
+
+        if plot_variable in self.Y.columns:
+            x_values = self.Y[plot_variable]
+        elif plot_variable in self.X.columns:
+            x_values = self.X[plot_variable]
+        else:
+            QMessageBox.warning(None, "Error", f"Plot variable '{plot_variable}' not found in Y or X.")
+            return
+
+        for i in range(len(categories)):
+            plot_key = f"plot_{i+1}"
+
+            probabilities = np.array(self.probabilities_values[i])
+            quantiles = np.array(self.probabilities_quantiles[i])
+
+            try:
+                spl = make_interp_spline(x_values, probabilities[0, :], k=3)
+                x_smooth = np.linspace(x_values.min(), x_values.max(), 500)
+                prob_smooth = spl(x_smooth)
+            except ValueError:
+                x_smooth = x_values
+                prob_smooth = probabilities[0, :]
+
+            if not self.config[plot_key]['probability_label']:
+                self.config[plot_key]['probability_label'] = "Probability"
+            if not self.config[plot_key]['uncertantity_label']:
+                self.config[plot_key]['uncertantity_label'] = "5.5%, 94.5%"
+
+            ax.plot(
+                x_smooth,
+                prob_smooth,
+                color=self.config[plot_key]['color_probability_curve'], 
+                linewidth=self.config['shared']['width_probability_curve'], 
+                linestyle='-', 
+                label=self.config[plot_key]['probability_label']
+            )
+
+            ax.fill_between(
+                x_values, 
+                quantiles[0, :, 0],
+                quantiles[0, :, -1],
+                color=self.config[plot_key]['color_uncertainty_area'], 
+                alpha=self.config['shared']['alpha_uncertainty_area'], 
+                edgecolor=self.config[plot_key]['color_probability_curve'], 
+                linewidth=self.config['shared']['width_uncertainty_area'],
+                label=self.config[plot_key]['uncertantity_label']
+            )
+
+        if self.config['x_line'].get('draw', False):
+            ax.axvline(
+                x=self.config['x_line']['value'], 
+                color=self.config['x_line']['color'], 
+                linestyle='--', 
+                linewidth=self.config['x_line']['width'], 
+                label=self.config['x_line']['label']
+            )
+
+        if self.config['y_line'].get('draw', False):
+            ax.axhline(
+                y=self.config['y_line']['value'], 
+                color=self.config['y_line']['color'], 
+                linestyle='--', 
+                linewidth=self.config['y_line']['width'], 
+                label=self.config['y_line']['label']
+            )
+
+        y_variable = self.selected_y_values[0] if self.selected_y_values else None
+        inequality = self.variable_values.get(y_variable, {}).get('inequality', '')
+        value = self.variable_values.get(y_variable, {}).get('value', '')
+
+        ax.set_xlabel(self.config['shared']['x_label'])
+        ax.set_ylabel(f"Probability of {y_variable} {inequality} {value}")
+        ax.legend()
         self.plot_canvas.draw()
 
     def on_configure_button_clicked(self):
@@ -934,7 +1548,18 @@ class PlottingPage(QWidget):
         self.load_configuration()
         self.configure_plot()
         if self.probabilities_values is not None and self.probabilities_quantiles is not None:
-            self.plot_probabilities()
+            if self.selected_func == "Pr":
+                self.plot_pr_probabilities()
+            elif self.selected_func == "tailPr":
+                categorical_variable = self.categorical_variable_combobox.currentText()
+                if categorical_variable and categorical_variable in self.variable_values:
+                    selected_categories = self.variable_values[categorical_variable]
+                    if len(selected_categories) > 1:
+                        self.plot_tailpr_probabilities_multi(selected_categories)
+                    else:
+                        self.plot_tailpr_probabilities()
+                else:
+                    self.plot_tailpr_probabilities()
     
     def load_configuration(self):
         """Load configuration from JSON file"""
@@ -952,7 +1577,7 @@ class PlottingPage(QWidget):
             self.config = json.load(f)
 
     def update_configuration(self):
-        """Update the configuration (x_label and probability labels) dynamically based on current selections and data."""
+        """Update the configuration dynamically based on current selections and data."""
         plot_variable = self.plot_variable_combobox.currentText()
         categorical_variable = self.categorical_variable_combobox.currentText()
         if categorical_variable == "No":
@@ -960,56 +1585,90 @@ class PlottingPage(QWidget):
 
         self.config['shared']['x_label'] = plot_variable
 
-        num_variables = self.probabilities_values.shape[1]
+        if self.selected_func == "tailPr":
+            other_values = []
+            all_selected_vars = self.selected_x_values
+            for var in all_selected_vars:
+                if var == plot_variable or var == categorical_variable:
+                    continue
+                val = self.variable_values.get(var)
+                if isinstance(val, list):
+                    if len(val) == 1:
+                        other_values.append(val[0])
+                    else:
+                        other_values.append(", ".join(val))
+                elif isinstance(val, dict):
+                    start_val = val.get('start', '')
+                    end_val = val.get('end', '')
+                    if end_val:
+                        other_values.append(f"{start_val}-{end_val}")
+                    else:
+                        other_values.append(str(start_val))
+                else:
+                    other_values.append(str(val))
 
-        other_values = []
-        all_selected_vars = self.selected_y_values + self.selected_x_values
-        for var in all_selected_vars:
-            if var == plot_variable or var == categorical_variable:
-                continue
-            val = self.variable_values.get(var)
-            if isinstance(val, list):
-                if len(val) == 1:
-                    other_values.append(val[0])
-                else:
-                    other_values.append(", ".join(val))
-            elif isinstance(val, dict):
-                start_val = val.get('start', '')
-                end_val = val.get('end', '')
-                if end_val:
-                    other_values.append(f"{start_val}-{end_val}")
-                else:
-                    other_values.append(str(start_val))
+            if categorical_variable and categorical_variable in self.variable_values:
+                categories = self.variable_values[categorical_variable]
+                for i, category in enumerate(categories, start=1):
+                    plot_key = f"plot_{i}"
+                    self.config[plot_key]['probability_label'] = f"{', '.join(other_values)}, {category}"
+                    self.config[plot_key]['uncertantity_label'] = ""
             else:
-                other_values.append(str(val))
+                plot_key = "plot_1"
+                self.config[plot_key]['probability_label'] = ", ".join(other_values)
+                self.config[plot_key]['uncertantity_label'] = ""
 
-        line_labels = []
-        if categorical_variable and categorical_variable in self.variable_values:
-            categorical_values = self.variable_values[categorical_variable]
-            for cat_val in categorical_values:
-                line_label_parts = list(other_values) + [cat_val]
-                line_labels.append(", ".join(line_label_parts))
-        else:
-            if num_variables > 1:
-                if plot_variable in self.Y.columns:
-                    x_line_values = self.Y[plot_variable].unique()
-                elif plot_variable in self.X.columns:
-                    x_line_values = self.X[plot_variable].unique()
+        elif self.selected_func == "Pr":
+            num_variables = self.probabilities_values.shape[1] if self.probabilities_values is not None else 1
+
+            other_values = []
+            all_selected_vars = self.selected_y_values + self.selected_x_values
+            for var in all_selected_vars:
+                if var == plot_variable or var == categorical_variable:
+                    continue
+                val = self.variable_values.get(var)
+                if isinstance(val, list):
+                    if len(val) == 1:
+                        other_values.append(val[0])
+                    else:
+                        other_values.append(", ".join(val))
+                elif isinstance(val, dict):
+                    start_val = val.get('start', '')
+                    end_val = val.get('end', '')
+                    if end_val:
+                        other_values.append(f"{start_val}-{end_val}")
+                    else:
+                        other_values.append(str(start_val))
                 else:
-                    x_line_values = ["Line " + str(i+1) for i in range(num_variables)]
+                    other_values.append(str(val))
 
-                x_line_values = list(map(str, x_line_values))
-                for val in x_line_values:
-                    line_label_parts = list(other_values) + [val]
+            line_labels = []
+            if categorical_variable and categorical_variable in self.variable_values:
+                categorical_values = self.variable_values[categorical_variable]
+                for cat_val in categorical_values:
+                    line_label_parts = list(other_values) + [cat_val]
                     line_labels.append(", ".join(line_label_parts))
             else:
-                label = ", ".join(other_values) if other_values else "Line 1"
-                line_labels.append(label)
+                if num_variables > 1:
+                    if plot_variable in self.Y.columns:
+                        x_line_values = self.Y[plot_variable].unique()
+                    elif plot_variable in self.X.columns:
+                        x_line_values = self.X[plot_variable].unique()
+                    else:
+                        x_line_values = ["Line " + str(i + 1) for i in range(num_variables)]
 
-        for i, label in enumerate(line_labels, start=1):
-            plot_key = f"plot_{i}"
-            if plot_key in self.config:
-                self.config[plot_key]['probability_label'] = label
+                    x_line_values = list(map(str, x_line_values))
+                    for val in x_line_values:
+                        line_label_parts = list(other_values) + [val]
+                        line_labels.append(", ".join(line_label_parts))
+                else:
+                    label = ", ".join(other_values) if other_values else "Line 1"
+                    line_labels.append(label)
+
+            for i, label in enumerate(line_labels, start=1):
+                plot_key = f"plot_{i}"
+                if plot_key in self.config:
+                    self.config[plot_key]['probability_label'] = label
 
     def configure_plot(self):
         """Open a dialog to configure plot settings."""
@@ -1019,7 +1678,6 @@ class PlottingPage(QWidget):
 
         layout = QFormLayout()
 
-        # Predefined color options
         color_options = ["blue", "green", "red", "black", "yellow", "cyan", "magenta"]
         lighter_color_options = ["lightblue", "lightgreen", "lightsalmon", "lightgray", "lightyellow", "lightcyan", "lightpink"]
 
@@ -1029,21 +1687,6 @@ class PlottingPage(QWidget):
         self.alpha_uncertainty_area_edit = QLineEdit(str(self.config['shared']['alpha_uncertainty_area']))
         self.xlabel_edit = QLineEdit(str(self.config['shared']['x_label']))
         self.ylabel_edit = QLineEdit(str(self.config['shared']['y_label']))
-
-        self.draw_x_change_line_checkbox = QCheckBox()
-        self.draw_x_change_line_checkbox.setChecked(self.config['shared'].get('draw_x_change_line', True))
-        self.x_line_value_edit = QLineEdit(str(self.config['shared']['x_line_value']))
-
-        # ComboBox for color_x_change_line
-        self.color_x_change_line_combo = QComboBox()
-        self.color_x_change_line_combo.addItems(color_options)
-        current_x_line_color = self.config['shared']['color_x_change_line']
-        if current_x_line_color not in color_options:
-            self.color_x_change_line_combo.addItem(current_x_line_color)
-        self.color_x_change_line_combo.setCurrentText(current_x_line_color)
-
-        self.width_x_change_line_edit = QLineEdit(str(self.config['shared']['width_x_change_line']))
-        self.x_line_label_edit = QLineEdit(str(self.config['shared']['x_line_label']))
 
         general_label = QLabel("General")
         general_label.setObjectName("sectionLabel")
@@ -1055,17 +1698,57 @@ class PlottingPage(QWidget):
         layout.addRow("Y-label:", self.ylabel_edit)
         layout.addRow("", QLabel())
 
-        change_line_label = QLabel("X-change Line")
-        change_line_label.setObjectName("sectionLabel")
-        layout.addRow(change_line_label, QLabel())
-        layout.addRow("Draw X-change Line:", self.draw_x_change_line_checkbox)
+        # X-line
+        self.draw_x_line_checkbox = QCheckBox()
+        self.draw_x_line_checkbox.setChecked(self.config['x_line'].get('draw', False))
+        self.x_line_value_edit = QLineEdit(str(self.config['x_line']['value']))
+
+        self.color_x_line_combo = QComboBox()
+        self.color_x_line_combo.addItems(color_options)
+        current_x_line_color = self.config['x_line']['color']
+        if current_x_line_color not in color_options:
+            self.color_x_line_combo.addItem(current_x_line_color)
+        self.color_x_line_combo.setCurrentText(current_x_line_color)
+
+        self.width_x_line_edit = QLineEdit(str(self.config['x_line']['width']))
+        self.x_line_label_edit = QLineEdit(str(self.config['x_line']['label']))
+
+        x_line_label = QLabel("X-line")
+        x_line_label.setObjectName("sectionLabel")
+        layout.addRow(x_line_label, QLabel())
+        layout.addRow("Draw X-line:", self.draw_x_line_checkbox)
         layout.addRow("X-value:", self.x_line_value_edit)
-        layout.addRow("Color:", self.color_x_change_line_combo)
-        layout.addRow("Line Width:", self.width_x_change_line_edit)
+        layout.addRow("Color:", self.color_x_line_combo)
+        layout.addRow("Line Width:", self.width_x_line_edit)
         layout.addRow("Label:", self.x_line_label_edit)
         layout.addRow("", QLabel())
 
-        # For plot_1
+        # Y-line
+        self.draw_y_line_checkbox = QCheckBox()
+        self.draw_y_line_checkbox.setChecked(self.config['y_line'].get('draw', False))
+        self.y_line_value_edit = QLineEdit(str(self.config['y_line']['value']))
+
+        self.color_y_line_combo = QComboBox()
+        self.color_y_line_combo.addItems(color_options)
+        current_y_line_color = self.config['y_line']['color']
+        if current_y_line_color not in color_options:
+            self.color_y_line_combo.addItem(current_y_line_color)
+        self.color_y_line_combo.setCurrentText(current_y_line_color)
+
+        self.width_y_line_edit = QLineEdit(str(self.config['y_line']['width']))
+        self.y_line_label_edit = QLineEdit(str(self.config['y_line']['label']))
+
+        y_line_label = QLabel("Y-line")
+        y_line_label.setObjectName("sectionLabel")
+        layout.addRow(y_line_label, QLabel())
+        layout.addRow("Draw Y-line:", self.draw_y_line_checkbox)
+        layout.addRow("Y-value:", self.y_line_value_edit)
+        layout.addRow("Color:", self.color_y_line_combo)
+        layout.addRow("Line Width:", self.width_y_line_edit)
+        layout.addRow("Label:", self.y_line_label_edit)
+        layout.addRow("", QLabel())
+
+        # Plot 1
         self.first_color_probability_curve_combo = QComboBox()
         self.first_color_probability_curve_combo.addItems(color_options)
         cpc_1 = self.config['plot_1']['color_probability_curve']
@@ -1092,7 +1775,7 @@ class PlottingPage(QWidget):
         layout.addRow("Uncertainty Label:", self.first_uncertantity_label_edit)
         layout.addRow("", QLabel())
 
-        # For plot_2
+        # Plot 2
         self.second_color_probability_curve_combo = QComboBox()
         self.second_color_probability_curve_combo.addItems(color_options)
         cpc_2 = self.config['plot_2']['color_probability_curve']
@@ -1137,14 +1820,23 @@ class PlottingPage(QWidget):
                 "shared": {
                     "x_label": self.xlabel_edit.text(),
                     "y_label": self.ylabel_edit.text(),
-                    "color_x_change_line": self.color_x_change_line_combo.currentText(),
                     "width_probability_curve": self.validate_and_parse_float(self.width_probability_curve_edit.text(), "Probability Curve Width"),
-                    "width_x_change_line": self.validate_and_parse_float(self.width_x_change_line_edit.text(), "Line Width"),
                     "width_uncertainty_area": self.validate_and_parse_float(self.width_uncertainty_area_edit.text(), "Uncertainty Area Width"),
-                    "alpha_uncertainty_area": self.validate_and_parse_float(self.alpha_uncertainty_area_edit.text(), "Uncertainty Area Alpha"),
-                    "x_line_value": self.validate_and_parse_float(self.x_line_value_edit.text(), "X-value"),
-                    "draw_x_change_line": self.draw_x_change_line_checkbox.isChecked(),
-                    "x_line_label": self.x_line_label_edit.text()
+                    "alpha_uncertainty_area": self.validate_and_parse_float(self.alpha_uncertainty_area_edit.text(), "Uncertainty Area Alpha")
+                },
+                "x_line": {
+                    "draw": self.draw_x_line_checkbox.isChecked(),
+                    "value": self.validate_and_parse_float(self.x_line_value_edit.text(), "X-value"),
+                    "color": self.color_x_line_combo.currentText(),
+                    "width": self.validate_and_parse_float(self.width_x_line_edit.text(), "Line Width"),
+                    "label": self.x_line_label_edit.text()
+                },
+                "y_line": {
+                    "draw": self.draw_y_line_checkbox.isChecked(),
+                    "value": self.validate_and_parse_float(self.y_line_value_edit.text(), "Y-value"),
+                    "color": self.color_y_line_combo.currentText(),
+                    "width": self.validate_and_parse_float(self.width_y_line_edit.text(), "Line Width"),
+                    "label": self.y_line_label_edit.text()
                 },
                 "plot_1": {
                     "color_probability_curve": self.first_color_probability_curve_combo.currentText(),
@@ -1192,8 +1884,12 @@ class PlottingPage(QWidget):
             QMessageBox.warning(self, "Invalid Input", "'Uncertainty Area Alpha' must be between 0 and 1.")
             return False
 
-        if config['shared']['width_x_change_line'] < 0:
-            QMessageBox.warning(self, "Invalid Input", "X-change 'Line Width' cannot be negative.")
+        if config['x_line']['width'] < 0:
+            QMessageBox.warning(self, "Invalid Input", "X-line 'Line Width' cannot be negative.")
+            return False
+        
+        if config['y_line']['width'] < 0:
+            QMessageBox.warning(self, "Invalid Input", "Y-line 'Line Width' cannot be negative.")
             return False
 
         return True

@@ -4,9 +4,6 @@ from rpy2.robjects import pandas2ri, StrVector, FloatVector
 from rpy2 import rinterface
 import os
 import shutil
-import logging
-import numpy as np
-from rpy2.robjects import r
 
 inferno = importr('inferno')
 grdevices = importr('grDevices')
@@ -15,15 +12,12 @@ def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=
     try:
         pandas2ri.activate()
 
-        # Read the CSV data
         data = pd.read_csv(csv_file_path)
         r_data = pandas2ri.py2rpy(data)
 
-        # Convert variables to R vectors if provided
         includevrt_r = StrVector(includevrt) if includevrt is not None else rinterface.NULL
         excludevrt_r = StrVector(excludevrt) if excludevrt is not None else rinterface.NULL
 
-        # Call the metadatatemplate function from inferno package
         inferno.metadatatemplate(
             data=r_data,
             file=output_file_name,
@@ -37,8 +31,7 @@ def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=
         return output_file_name
 
     except Exception as e:
-        print(f"An error occurred while building the metadata: {str(e)}")
-        return None
+        raise e
 
     finally:
         pandas2ri.deactivate()
@@ -46,7 +39,6 @@ def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=
 
 def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 3600, nchains: int = 60, maxhours: float = float('inf'), parallel: int = None, seed: int = None):
     try:
-       # Convert file paths to R string vectors
         metadatafile_r = StrVector([metadatafile])
         datafile_r = StrVector([datafile])
 
@@ -71,29 +63,23 @@ def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 
         return result
 
     except Exception as e:
-        print(f"An error occurred while running the 'run_learn' function in r_integration/inferno_functions.py: {str(e)}")
-        
-        # Clean up: Delete the output folder if it was created
         if os.path.exists(outputdir):
             try:
                 shutil.rmtree(outputdir)
             except OSError as delete_error:
-                print(f"Failed to delete directory {outputdir}: {delete_error}")
+                raise delete_error
+        raise e
 
-        return None
 
-
-def run_Pr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantiles = [0.055, 0.25, 0.75, 0.945], nsamples: int = 100, parallel: int = 12):
+def run_Pr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantiles = [0.055, 0.945], nsamples: int = 100, parallel: int = 12):
     try:
         pandas2ri.activate()
 
-        # Convert the DataFrames to R objects
         r_Y = pandas2ri.py2rpy(Y)
         r_X = pandas2ri.py2rpy(X) if X is not None and not X.empty else rinterface.NULL
         learnt_r = StrVector([learnt_dir])
         quantiles_r = FloatVector(quantiles)
 
-        # Call the Pr() function from Inferno with default parallelism and memory handling
         probabilities = inferno.Pr(
             Y=r_Y,
             X=r_X,
@@ -107,45 +93,43 @@ def run_Pr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantiles =
             quantiles = probabilities.rx2('quantiles')
             return values, quantiles
         else:
-            print("The Pr function did not return any results.")
             return None
 
     except Exception as e:
-        print(f"An error occurred while running the 'run_Pr' function: {str(e)}")
-        return None
+        raise e
 
     finally:
         pandas2ri.deactivate()
 
 
-def run_tailPr(Y: pd.DataFrame, learnt_dir: str, X: pd.DataFrame = None, quantiles=[0.055, 0.25, 0.75, 0.945], nsamples=100):
+def run_tailPr(Y: pd.DataFrame, learnt_dir: str, eq: bool, lower_tail: bool, X: pd.DataFrame = None, quantiles = [0.055, 0.945], nsamples: int = 100, parallel: int = 12):
     try:
         pandas2ri.activate()
 
-        # Convert DataFrames to R objects
         r_Y = pandas2ri.py2rpy(Y)
-        r_X = pandas2ri.py2rpy(X) if X else rinterface.NULL
+        r_X = pandas2ri.py2rpy(X) if X is not None and not X.empty else rinterface.NULL
         learnt_r = StrVector([learnt_dir])
         quantiles_r = FloatVector(quantiles)
 
-        # Call the tailPr() function from Inferno with default parallelism and memory handling
         probabilities = inferno.tailPr(
             Y=r_Y,
             X=r_X,
             learnt=learnt_r,
-            quantiles=quantiles_r,
             nsamples=nsamples,
-            parallel=True,
-            lower_tail=True,
-            silent=True,
-            usememory=True,
-            keepYX=True
+            parallel=parallel,
+            quantiles=quantiles_r,
+            eq=eq,
+            **{'lower.tail': lower_tail}
         )
-        return probabilities
+        if probabilities:
+            values = probabilities.rx2('values')
+            quantiles = probabilities.rx2('quantiles')
+            return values, quantiles
+        else:
+            return None
 
     except Exception as e:
-        print(f"An error occurred while running the 'run_tailPr' function: {str(e)}")
-        return None
+        raise e 
 
     finally:
         pandas2ri.deactivate()
@@ -156,13 +140,11 @@ def run_mutualinfo(predictor: list, learnt_dir: str, additional_predictor: list 
     try:
         pandas2ri.activate()
 
-        # Convert inputs to R objects
         Y1names_r = StrVector(predictor)
         Y2names_r = StrVector(additional_predictor) if additional_predictor else rinterface.NULL
         r_X = pandas2ri.py2rpy(predictand) if predictand is not None and not predictand.empty else rinterface.NULL
         learnt_r = StrVector([learnt_dir])
 
-        # Call the mutualinfo() function from Inferno with default parallelism and memory handling
         result = inferno.mutualinfo(
             Y1names=Y1names_r,
             Y2names=Y2names_r,
@@ -177,8 +159,7 @@ def run_mutualinfo(predictor: list, learnt_dir: str, additional_predictor: list 
         return result
 
     except Exception as e:
-        print(f"An error occurred while running the 'run_mutualinfo' function: {str(e)}")
-        return None
+        raise e
 
     finally:
         pandas2ri.deactivate()

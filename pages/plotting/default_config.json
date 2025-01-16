@@ -2,25 +2,34 @@
     "shared": {
         "x_label": "X-axis",
         "y_label": "Probability",
-        "color_x_change_line": "red",
         "width_probability_curve": 2,
-        "width_x_change_line": 2,
         "width_uncertainty_area": 1,
-        "alpha_uncertainty_area": 0.5,
-        "x_line_value": 0,
-        "x_line_label": "0-change line",
-        "draw_x_change_line": true
+        "alpha_uncertainty_area": 0.5
+    },
+    "x_line": {
+        "color": "red",
+        "width": 2,
+        "value": 0,
+        "label": "0-change line",
+        "draw": false
+    },
+    "y_line": {
+        "color": "red",
+        "width": 2,
+        "value": 0.5,
+        "label": "50% Probability",
+        "draw": false
     },
     "plot_1": {
         "color_probability_curve": "blue",
         "color_uncertainty_area": "lightblue",
-        "probability_label": "Plot 1 Probability",
-        "uncertantity_label": ""
+        "probability_label": "Probability",
+        "uncertantity_label": "5.5%, 94.5%"
     },
     "plot_2": {
         "color_probability_curve": "green",
         "color_uncertainty_area": "lightgreen",
-        "probability_label": "Plot 2 Probability",
-        "uncertantity_label": ""
+        "probability_label": "Probability",
+        "uncertantity_label": "5.5%, 94.5%"
     }
 }
