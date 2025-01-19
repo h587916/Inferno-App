@@ -1,24 +1,22 @@
 import os
-import json
 import numpy as np
 import pandas as pd
 import importlib.resources
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, 
                                 QComboBox, QListWidget, QFileDialog, QAbstractItemView, QFormLayout, QLineEdit, 
-                                QMessageBox, QSizePolicy, QAbstractItemView, QDialog, QSpacerItem, QCheckBox)
+                                QMessageBox, QSizePolicy, QAbstractItemView, QSpacerItem)
 from PySide6.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from r_integration.inferno_functions import run_Pr, run_tailPr
 from scipy.interpolate import make_interp_spline
+from pages.plotting.config import load_configuration, reset_configuration, write_configuration, update_configuration, configure_plot
 
-# Define the base directory paths (consistent with file_manager.py)
 HOME_DIR = os.path.expanduser('~')
 APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
 
 UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
 LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
-USER_CONFIG_PATH = os.path.join(APP_DIR, 'config/plotting_config.json')
 
 class CustomComboBox(QComboBox):
     def wheelEvent(self, event):
@@ -40,8 +38,8 @@ class PlottingPage(QWidget):
         self.probabilities_values = None
         self.probabilities_quantiles = None
         self.selected_func = None
-        self.reset_configuration()
-        self.write_configuration()
+        reset_configuration(self)
+        write_configuration(self)
 
         main_layout = QVBoxLayout()
 
@@ -1054,9 +1052,9 @@ class PlottingPage(QWidget):
 
         try:
             self.probabilities_values, self.probabilities_quantiles = run_Pr(self.Y, learnt_dir, self.X)
-            self.reset_configuration()
-            self.update_configuration()
-            self.write_configuration()
+            reset_configuration(self)
+            update_configuration(self)
+            write_configuration(self)
             self.plot_pr_probabilities()
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to plot probabilities using Pr function: {str(e)}")
@@ -1099,21 +1097,21 @@ class PlottingPage(QWidget):
                         self.probabilities_values.append(single_values)
                         self.probabilities_quantiles.append(single_quantiles)
 
-                    self.reset_configuration()
-                    self.update_configuration()
-                    self.write_configuration()
+                    reset_configuration(self)
+                    update_configuration(self)
+                    write_configuration(self)
                     self.plot_tailpr_probabilities_multi(selected_categories)
                 else:
                     self.probabilities_values, self.probabilities_quantiles = run_tailPr(self.Y, learnt_dir, eq, lower_tail, self.X)
-                    self.reset_configuration()
-                    self.update_configuration()
-                    self.write_configuration()
+                    reset_configuration(self)
+                    update_configuration(self)
+                    write_configuration(self)
                     self.plot_tailpr_probabilities()
             else:
                 self.probabilities_values, self.probabilities_quantiles = run_tailPr(self.Y, learnt_dir, eq, lower_tail, self.X)
-                self.reset_configuration()
-                self.update_configuration()
-                self.write_configuration()
+                reset_configuration(self)
+                update_configuration(self)
+                write_configuration(self)
                 self.plot_tailpr_probabilities()
 
         except Exception as e:
@@ -1545,8 +1543,8 @@ class PlottingPage(QWidget):
 
     def on_configure_button_clicked(self):
         """Open the configuration dialog to change plot settings."""
-        self.load_configuration()
-        self.configure_plot()
+        load_configuration(self)
+        configure_plot(self)
         if self.probabilities_values is not None and self.probabilities_quantiles is not None:
             if self.selected_func == "Pr":
                 self.plot_pr_probabilities()
@@ -1560,339 +1558,6 @@ class PlottingPage(QWidget):
                         self.plot_tailpr_probabilities()
                 else:
                     self.plot_tailpr_probabilities()
-    
-    def load_configuration(self):
-        """Load configuration from JSON file"""
-        with open(USER_CONFIG_PATH, 'r') as f:
-            self.config = json.load(f)
-
-    def write_configuration(self):
-        """Write configuration to JSON file"""
-        with open(USER_CONFIG_PATH, 'w') as f:
-            json.dump(self.config, f)
-
-    def reset_configuration(self):
-        """Reset the configuration to default values."""
-        with importlib.resources.open_text('pages.plotting', 'default_config.json') as f:
-            self.config = json.load(f)
-
-    def update_configuration(self):
-        """Update the configuration dynamically based on current selections and data."""
-        plot_variable = self.plot_variable_combobox.currentText()
-        categorical_variable = self.categorical_variable_combobox.currentText()
-        if categorical_variable == "No":
-            categorical_variable = None
-
-        self.config['shared']['x_label'] = plot_variable
-
-        if self.selected_func == "tailPr":
-            other_values = []
-            all_selected_vars = self.selected_x_values
-            for var in all_selected_vars:
-                if var == plot_variable or var == categorical_variable:
-                    continue
-                val = self.variable_values.get(var)
-                if isinstance(val, list):
-                    if len(val) == 1:
-                        other_values.append(val[0])
-                    else:
-                        other_values.append(", ".join(val))
-                elif isinstance(val, dict):
-                    start_val = val.get('start', '')
-                    end_val = val.get('end', '')
-                    if end_val:
-                        other_values.append(f"{start_val}-{end_val}")
-                    else:
-                        other_values.append(str(start_val))
-                else:
-                    other_values.append(str(val))
-
-            if categorical_variable and categorical_variable in self.variable_values:
-                categories = self.variable_values[categorical_variable]
-                for i, category in enumerate(categories, start=1):
-                    plot_key = f"plot_{i}"
-                    self.config[plot_key]['probability_label'] = f"{', '.join(other_values)}, {category}"
-                    self.config[plot_key]['uncertantity_label'] = ""
-            else:
-                plot_key = "plot_1"
-                self.config[plot_key]['probability_label'] = ", ".join(other_values)
-                self.config[plot_key]['uncertantity_label'] = ""
-
-        elif self.selected_func == "Pr":
-            num_variables = self.probabilities_values.shape[1] if self.probabilities_values is not None else 1
-
-            other_values = []
-            all_selected_vars = self.selected_y_values + self.selected_x_values
-            for var in all_selected_vars:
-                if var == plot_variable or var == categorical_variable:
-                    continue
-                val = self.variable_values.get(var)
-                if isinstance(val, list):
-                    if len(val) == 1:
-                        other_values.append(val[0])
-                    else:
-                        other_values.append(", ".join(val))
-                elif isinstance(val, dict):
-                    start_val = val.get('start', '')
-                    end_val = val.get('end', '')
-                    if end_val:
-                        other_values.append(f"{start_val}-{end_val}")
-                    else:
-                        other_values.append(str(start_val))
-                else:
-                    other_values.append(str(val))
-
-            line_labels = []
-            if categorical_variable and categorical_variable in self.variable_values:
-                categorical_values = self.variable_values[categorical_variable]
-                for cat_val in categorical_values:
-                    line_label_parts = list(other_values) + [cat_val]
-                    line_labels.append(", ".join(line_label_parts))
-            else:
-                if num_variables > 1:
-                    if plot_variable in self.Y.columns:
-                        x_line_values = self.Y[plot_variable].unique()
-                    elif plot_variable in self.X.columns:
-                        x_line_values = self.X[plot_variable].unique()
-                    else:
-                        x_line_values = ["Line " + str(i + 1) for i in range(num_variables)]
-
-                    x_line_values = list(map(str, x_line_values))
-                    for val in x_line_values:
-                        line_label_parts = list(other_values) + [val]
-                        line_labels.append(", ".join(line_label_parts))
-                else:
-                    label = ", ".join(other_values) if other_values else "Line 1"
-                    line_labels.append(label)
-
-            for i, label in enumerate(line_labels, start=1):
-                plot_key = f"plot_{i}"
-                if plot_key in self.config:
-                    self.config[plot_key]['probability_label'] = label
-
-    def configure_plot(self):
-        """Open a dialog to configure plot settings."""
-        dialog = QDialog(self)
-        dialog.setMinimumWidth(300)
-        dialog.setWindowTitle("Configure Plot Settings")
-
-        layout = QFormLayout()
-
-        color_options = ["blue", "green", "red", "black", "yellow", "cyan", "magenta"]
-        lighter_color_options = ["lightblue", "lightgreen", "lightsalmon", "lightgray", "lightyellow", "lightcyan", "lightpink"]
-
-        # Shared Fields
-        self.width_probability_curve_edit = QLineEdit(str(self.config['shared']['width_probability_curve']))
-        self.width_uncertainty_area_edit = QLineEdit(str(self.config['shared']['width_uncertainty_area']))
-        self.alpha_uncertainty_area_edit = QLineEdit(str(self.config['shared']['alpha_uncertainty_area']))
-        self.xlabel_edit = QLineEdit(str(self.config['shared']['x_label']))
-        self.ylabel_edit = QLineEdit(str(self.config['shared']['y_label']))
-
-        general_label = QLabel("General")
-        general_label.setObjectName("sectionLabel")
-        layout.addRow(general_label, QLabel())
-        layout.addRow("Uncertainty Area Alpha:", self.alpha_uncertainty_area_edit)
-        layout.addRow("Uncertainty Area Width:", self.width_uncertainty_area_edit)
-        layout.addRow("Probability Curve Width:", self.width_probability_curve_edit)
-        layout.addRow("X-label:", self.xlabel_edit)
-        layout.addRow("Y-label:", self.ylabel_edit)
-        layout.addRow("", QLabel())
-
-        # X-line
-        self.draw_x_line_checkbox = QCheckBox()
-        self.draw_x_line_checkbox.setChecked(self.config['x_line'].get('draw', False))
-        self.x_line_value_edit = QLineEdit(str(self.config['x_line']['value']))
-
-        self.color_x_line_combo = QComboBox()
-        self.color_x_line_combo.addItems(color_options)
-        current_x_line_color = self.config['x_line']['color']
-        if current_x_line_color not in color_options:
-            self.color_x_line_combo.addItem(current_x_line_color)
-        self.color_x_line_combo.setCurrentText(current_x_line_color)
-
-        self.width_x_line_edit = QLineEdit(str(self.config['x_line']['width']))
-        self.x_line_label_edit = QLineEdit(str(self.config['x_line']['label']))
-
-        x_line_label = QLabel("X-line")
-        x_line_label.setObjectName("sectionLabel")
-        layout.addRow(x_line_label, QLabel())
-        layout.addRow("Draw X-line:", self.draw_x_line_checkbox)
-        layout.addRow("X-value:", self.x_line_value_edit)
-        layout.addRow("Color:", self.color_x_line_combo)
-        layout.addRow("Line Width:", self.width_x_line_edit)
-        layout.addRow("Label:", self.x_line_label_edit)
-        layout.addRow("", QLabel())
-
-        # Y-line
-        self.draw_y_line_checkbox = QCheckBox()
-        self.draw_y_line_checkbox.setChecked(self.config['y_line'].get('draw', False))
-        self.y_line_value_edit = QLineEdit(str(self.config['y_line']['value']))
-
-        self.color_y_line_combo = QComboBox()
-        self.color_y_line_combo.addItems(color_options)
-        current_y_line_color = self.config['y_line']['color']
-        if current_y_line_color not in color_options:
-            self.color_y_line_combo.addItem(current_y_line_color)
-        self.color_y_line_combo.setCurrentText(current_y_line_color)
-
-        self.width_y_line_edit = QLineEdit(str(self.config['y_line']['width']))
-        self.y_line_label_edit = QLineEdit(str(self.config['y_line']['label']))
-
-        y_line_label = QLabel("Y-line")
-        y_line_label.setObjectName("sectionLabel")
-        layout.addRow(y_line_label, QLabel())
-        layout.addRow("Draw Y-line:", self.draw_y_line_checkbox)
-        layout.addRow("Y-value:", self.y_line_value_edit)
-        layout.addRow("Color:", self.color_y_line_combo)
-        layout.addRow("Line Width:", self.width_y_line_edit)
-        layout.addRow("Label:", self.y_line_label_edit)
-        layout.addRow("", QLabel())
-
-        # Plot 1
-        self.first_color_probability_curve_combo = QComboBox()
-        self.first_color_probability_curve_combo.addItems(color_options)
-        cpc_1 = self.config['plot_1']['color_probability_curve']
-        if cpc_1 not in color_options:
-            self.first_color_probability_curve_combo.addItem(cpc_1)
-        self.first_color_probability_curve_combo.setCurrentText(cpc_1)
-
-        self.first_color_uncertainty_area_combo = QComboBox()
-        self.first_color_uncertainty_area_combo.addItems(lighter_color_options)
-        cua_1 = self.config['plot_1']['color_uncertainty_area']
-        if cua_1 not in lighter_color_options:
-            self.first_color_uncertainty_area_combo.addItem(cua_1)
-        self.first_color_uncertainty_area_combo.setCurrentText(cua_1)
-
-        self.first_probability_label_edit = QLineEdit(self.config['plot_1']['probability_label'])
-        self.first_uncertantity_label_edit = QLineEdit(self.config['plot_1']['uncertantity_label'])
-
-        first_label = QLabel("1st Plot")
-        first_label.setObjectName("sectionLabel")
-        layout.addRow(first_label, QLabel())
-        layout.addRow("Probability Curve Color:", self.first_color_probability_curve_combo)
-        layout.addRow("Uncertainty Area Color:", self.first_color_uncertainty_area_combo)
-        layout.addRow("Probability Label:", self.first_probability_label_edit)
-        layout.addRow("Uncertainty Label:", self.first_uncertantity_label_edit)
-        layout.addRow("", QLabel())
-
-        # Plot 2
-        self.second_color_probability_curve_combo = QComboBox()
-        self.second_color_probability_curve_combo.addItems(color_options)
-        cpc_2 = self.config['plot_2']['color_probability_curve']
-        if cpc_2 not in color_options:
-            self.second_color_probability_curve_combo.addItem(cpc_2)
-        self.second_color_probability_curve_combo.setCurrentText(cpc_2)
-
-        self.second_color_uncertainty_area_combo = QComboBox()
-        self.second_color_uncertainty_area_combo.addItems(lighter_color_options)
-        cua_2 = self.config['plot_2']['color_uncertainty_area']
-        if cua_2 not in lighter_color_options:
-            self.second_color_uncertainty_area_combo.addItem(cua_2)
-        self.second_color_uncertainty_area_combo.setCurrentText(cua_2)
-
-        self.second_probability_label_edit = QLineEdit(self.config['plot_2']['probability_label'])
-        self.second_uncertantity_label_edit = QLineEdit(self.config['plot_2']['uncertantity_label'])
-
-        second_label = QLabel("2nd Plot")
-        second_label.setObjectName("sectionLabel")
-        layout.addRow(second_label, QLabel())
-        layout.addRow("Probability Curve Color:", self.second_color_probability_curve_combo)
-        layout.addRow("Uncertainty Area Color:", self.second_color_uncertainty_area_combo)
-        layout.addRow("Probability Label:", self.second_probability_label_edit)
-        layout.addRow("Uncertainty Label:", self.second_uncertantity_label_edit)
-
-        # Buttons
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-        save_button = QPushButton("Save")
-        save_button.setObjectName("saveButton")
-        save_button.clicked.connect(lambda: self.save_configuration(dialog))
-        button_layout.addWidget(save_button)
-
-        layout.addRow(button_layout)
-        dialog.setLayout(layout)
-        dialog.exec_()
-
-    def save_configuration(self, dialog):
-        """Save the configuration values"""
-        try:
-            config = {
-                "shared": {
-                    "x_label": self.xlabel_edit.text(),
-                    "y_label": self.ylabel_edit.text(),
-                    "width_probability_curve": self.validate_and_parse_float(self.width_probability_curve_edit.text(), "Probability Curve Width"),
-                    "width_uncertainty_area": self.validate_and_parse_float(self.width_uncertainty_area_edit.text(), "Uncertainty Area Width"),
-                    "alpha_uncertainty_area": self.validate_and_parse_float(self.alpha_uncertainty_area_edit.text(), "Uncertainty Area Alpha")
-                },
-                "x_line": {
-                    "draw": self.draw_x_line_checkbox.isChecked(),
-                    "value": self.validate_and_parse_float(self.x_line_value_edit.text(), "X-value"),
-                    "color": self.color_x_line_combo.currentText(),
-                    "width": self.validate_and_parse_float(self.width_x_line_edit.text(), "Line Width"),
-                    "label": self.x_line_label_edit.text()
-                },
-                "y_line": {
-                    "draw": self.draw_y_line_checkbox.isChecked(),
-                    "value": self.validate_and_parse_float(self.y_line_value_edit.text(), "Y-value"),
-                    "color": self.color_y_line_combo.currentText(),
-                    "width": self.validate_and_parse_float(self.width_y_line_edit.text(), "Line Width"),
-                    "label": self.y_line_label_edit.text()
-                },
-                "plot_1": {
-                    "color_probability_curve": self.first_color_probability_curve_combo.currentText(),
-                    "color_uncertainty_area": self.first_color_uncertainty_area_combo.currentText(),
-                    "probability_label": self.first_probability_label_edit.text(),
-                    "uncertantity_label": self.first_uncertantity_label_edit.text()
-                },
-                "plot_2": {
-                    "color_probability_curve": self.second_color_probability_curve_combo.currentText(),
-                    "color_uncertainty_area": self.second_color_uncertainty_area_combo.currentText(),
-                    "probability_label": self.second_probability_label_edit.text(),
-                    "uncertantity_label": self.second_uncertantity_label_edit.text()
-                }
-            }
-
-            if not self.validate_configuration(config):
-                return
-            
-            self.config = config
-            self.write_configuration()
-            dialog.accept()
-
-        except ValueError as e:
-            QMessageBox.warning(self, "Invalid Input", str(e))
-            return
-
-    def validate_and_parse_float(self, value, field_name):
-        """Validate and parse a string value as a float."""
-        try:
-            return float(value)
-        except ValueError:
-            raise ValueError(f"Invalid value for {field_name}: {value}. Please enter a numeric value.")
-
-    def validate_configuration(self, config):
-        """Validate the configuration values."""
-        if config['shared']['width_probability_curve'] <= 0:
-            QMessageBox.warning(self, "Invalid Input", "'Probability Curve Width' must be positive.")
-            return False
-        
-        if config['shared']['width_uncertainty_area'] < 0:
-            QMessageBox.warning(self, "Invalid Input", "'Uncertainty Area Width' cannot be negative.")
-            return False
-        
-        if config['shared']['alpha_uncertainty_area'] < 0 or config['shared']['alpha_uncertainty_area'] > 1:
-            QMessageBox.warning(self, "Invalid Input", "'Uncertainty Area Alpha' must be between 0 and 1.")
-            return False
-
-        if config['x_line']['width'] < 0:
-            QMessageBox.warning(self, "Invalid Input", "X-line 'Line Width' cannot be negative.")
-            return False
-        
-        if config['y_line']['width'] < 0:
-            QMessageBox.warning(self, "Invalid Input", "Y-line 'Line Width' cannot be negative.")
-            return False
-
-        return True
 
     def download_plot(self):
         """Download the plot as a PNG, JPEG, or PDF file."""
