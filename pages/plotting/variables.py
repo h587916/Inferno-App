@@ -3,6 +3,7 @@ import pandas as pd
 from PySide6.QtWidgets import QMessageBox, QListWidget, QAbstractItemView, QHBoxLayout, QLabel, QLineEdit, QWidget, QSizePolicy
 from PySide6.QtCore import Qt
 from pages.plotting.custom_combobox import CustomComboBox
+from pages.plotting.plotting import clear_plot
 
 HOME_DIR = os.path.expanduser('~')
 APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
@@ -137,7 +138,7 @@ def sync_variable_selections(self, added_variables, removed_variables):
     update_disabled_items(self)
     update_X_list_visibility(self)
     self.update_plot_title()
-    self.clear_plot()
+    clear_plot(self)
 
 def update_categorical_variable_combobox(self):
     """Update the categorical variable combobox based on selected X variables."""
@@ -502,7 +503,7 @@ def add_custom_spacing(layout, height):
 def value_changed(self):
     """Update the stored variable values when the input value changes."""
     self.variable_values = get_input_value(self, self.selected_y_values + self.selected_x_values)
-    self.clear_plot()
+    clear_plot(self)
     self.update_plot_title()
 
 def get_input_value(self, selected_values):
