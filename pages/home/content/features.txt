@@ -22,13 +22,23 @@ Learn:
 <br>
 
 Plotting:
-<blockquote>
-    Work in progress...
+<blockquote> 
+    The plotting page is where you generate probability plots based on your simulation results. 
+    You can choose between two probability functions from the Inferno R package, <a href="https://pglpm.github.io/inferno/reference/Pr.html"><strong>Pr</strong> </a> and <a href="https://pglpm.github.io/inferno/reference/tailPr.html"><strong>tailPr</strong> </a>, each offering a different perspective. 
+    You can see examples of different plots the 2 functions can produce <a href="https://pglpm.github.io/inferno/articles/vignette_parkinson.html#drawing-inferences">here </a>.<br>
+    <br> - <strong>Pr</strong>: Calculates <em>P(Y | X, data)</em>. 
+    This function computes the probability of a range of values for a numeric Y-variable against specified values of X-variables. 
+    The results include quantiles representing the variability in the probabilities if additional data were available, as well as samples of the probability values. 
+    In the plot, the defined range for the numeric Y-variable is displayed on the X-axis, and the probability values are plotted on the Y-axis. 
+    <br> - <strong>tailPr</strong>: Calculates <em>P(Y &le; y | X, data)</em> or <em>P(Y > y | X, data)</em>. 
+    This function computes cumulative probabilities for a specific value of a numeric Y-variable against specified X-variables. 
+    The results include quantiles showing the variability in cumulative probabilities if additional data were available, as well as samples of possible values. 
+    The plot displays the numeric X-variable on the X-axis and the cumulative probabilities on the Y-axis. <br>
 </blockquote>
 <br>
 
 Mutualinfo:
 <blockquote>
-    Work in progress...
+    Work in progress ...
 </blockquote>
 <br>

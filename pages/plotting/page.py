@@ -288,7 +288,7 @@ class PlottingPage(QWidget):
             self.setStyleSheet(style)
 
         # Connect to file manager signals
-        self.file_manager.learnt_folders_updated.connect(self.load_result_folders_pr)
+        self.file_manager.learnt_folders_updated.connect(self.load_learnt_folders)
         self.file_manager.refresh()
 
         # Update the title after initializing all widgets
@@ -378,7 +378,7 @@ class PlottingPage(QWidget):
             return value or ''
 
     ############# LEARNT FOLDERS #############
-    def load_result_folders_pr(self):
+    def load_learnt_folders(self):
         """Load learnt folders into the PR learnt combobox from the FileManager."""
         self.pr_learnt_combobox.clear()
 
