@@ -395,19 +395,33 @@ class PlottingPage(QWidget):
 
     def on_learnt_folder_selected(self, index):
         """Display the probability function frame when a learnt folder is selected."""
+        self.probability_function_combobox.blockSignals(True)
+        self.probability_function_combobox.setCurrentIndex(-1)
+        self.probability_function_frame.hide()
+        self.probability_function_combobox.blockSignals(False)
+
+        self.variable_selection_frame.hide()
+        self.Y_listwidget.clear()
+        self.X_listwidget.clear()
+        self.Y_listwidget.clearSelection()
+        self.X_listwidget.clearSelection()
+        self.selected_y_values = []
+        self.selected_x_values = []
+
+        clear_input_layout(self)
+        self.selected_func = None
+        
         if index >= 0:
             self.data = self.pr_learnt_combobox.currentText()
             self.probability_function_frame.show()
         else:
             self.data = "data"
-            self.probability_function_frame.hide()
         self.update_plot_title()
 
     ############# PROBABILITY FUNCTION  SELECTION #############
     def on_probability_function_selected(self, index):
         """Update the UI based on the selected probability function."""
         if index >= 0:
-
             self.selected_func = self.probability_function_combobox.currentText()
             if self.selected_func == "tailPr":
                 self.Y_listwidget.setSelectionMode(QAbstractItemView.SingleSelection)
