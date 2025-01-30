@@ -1,10 +1,8 @@
 from PySide6.QtCore import QObject, Signal
 import os
 import shutil
-from PySide6.QtWidgets import QMessageBox
 
-HOME_DIR = os.path.expanduser('~')
-APP_DIR = os.path.join(HOME_DIR, '.inferno_app')  # Using a hidden directory
+APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
 
 if not os.path.exists(APP_DIR):
     os.makedirs(APP_DIR)
@@ -14,13 +12,11 @@ METADATA_FOLDER = os.path.join(APP_DIR, 'metadata')
 LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
 CONFIG_FOLDER = os.path.join(APP_DIR, 'config')
 
-# Ensure the directories exist
 for folder in [UPLOAD_FOLDER, METADATA_FOLDER, LEARNT_FOLDER, CONFIG_FOLDER]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
 class FileManager(QObject):
-    # Signals to notify when files or learnt folders are updated
     files_updated = Signal()
     learnt_folders_updated = Signal()
 

@@ -12,8 +12,7 @@ from pages.plotting.prob_functions import run_pr_function, run_tailpr_function
 from pages.plotting.plotting import plot_pr_probabilities, plot_tailpr_probabilities, plot_tailpr_probabilities_multi, clear_plot
 from pages.plotting.custom_combobox import CustomComboBox
 
-HOME_DIR = os.path.expanduser('~')
-APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
+APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
 
 UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
 LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')

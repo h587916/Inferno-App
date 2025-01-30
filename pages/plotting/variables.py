@@ -5,8 +5,7 @@ from PySide6.QtCore import Qt
 from pages.plotting.custom_combobox import CustomComboBox
 from pages.plotting.plotting import clear_plot
 
-HOME_DIR = os.path.expanduser('~')
-APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
+APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
 LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
 
 

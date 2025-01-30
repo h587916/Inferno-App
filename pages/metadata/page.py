@@ -19,8 +19,7 @@ header_tooltips = tooltips['header_tooltips']
 combobox_item_tooltips = tooltips['combobox_item_tooltips']
 
 # Define the base directory paths (consistent with file_manager.py)
-HOME_DIR = os.path.expanduser('~')
-APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
+APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
 
 UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
 METADATA_FOLDER = os.path.join(APP_DIR, 'metadata')

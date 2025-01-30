@@ -7,8 +7,7 @@ from pages.plotting.config import reset_configuration, update_configuration, wri
 from r_integration.inferno_functions import run_Pr, run_tailPr
 from pages.plotting.plotting import plot_pr_probabilities, plot_tailpr_probabilities, plot_tailpr_probabilities_multi
 
-HOME_DIR = os.path.expanduser('~')
-APP_DIR = os.path.join(HOME_DIR, '.inferno_app')
+APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
 LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
 
 
