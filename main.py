@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         ico_icon_path = os.path.join(base_path, 'icons', 'inferno_symbol.png')
         self.setWindowIcon(QIcon(ico_icon_path))
         self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
-        self.resize(1500, 800)
+        self.resize(1400, 700)
 
         # Main layout that will hold the sidebar and the content area
         self.main_layout = QHBoxLayout()

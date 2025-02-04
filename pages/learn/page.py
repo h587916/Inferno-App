@@ -377,16 +377,31 @@ class LearnPage(QWidget):
             QMessageBox.warning(self, "Error", "Please select both a CSV file and a Metadata file.")
             return
 
-        confirmation = QMessageBox.question(self, "Confirm", f"Run Monte Carlo simulation with:\nMetadata: {metadata_file}\nData: {csv_file}", QMessageBox.Yes | QMessageBox.No)
+        confirmation = QMessageBox.question(
+            self, 
+            "Confirm", 
+            f"Run Monte Carlo simulation with:\nMetadata: {metadata_file}\nData: {csv_file}", 
+            QMessageBox.Yes | QMessageBox.No
+        )
         if confirmation == QMessageBox.No:
             return
 
         datafile_name = os.path.splitext(csv_file)[0]
         outputdir = os.path.join(LEARNT_FOLDER, datafile_name)
 
+        if os.path.exists(outputdir):
+            overwrite_confirmation = QMessageBox.question(
+                self,
+                "Overwrite Warning",
+                f"The folder '{datafile_name}' already exists in the learnt folder.\n Running the simulation will overwrite its contents.\n Do you want to continue?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if overwrite_confirmation == QMessageBox.No:
+                return
+
         running_message = QMessageBox(self)
         running_message.setWindowTitle("Running")
-        running_message.setText("Running the Monte Carlo simulation... \nThis will take a few minutes, so you might want\n to go grab a cup of coffee while waiting.")
+        running_message.setText("Running the Monte Carlo simulation... \n This can take a few minutes, so you might want\n to go grab a cup of coffee while waiting.")
         running_message.setStandardButtons(QMessageBox.NoButton)
         running_message.show()
 

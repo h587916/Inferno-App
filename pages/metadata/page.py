@@ -488,9 +488,9 @@ class MetadataPage(QWidget):
 
     def save_metadata_file(self):
         """Save the modified metadata file."""
-        if hasattr(self, 'selected_metadata_path'):
+        if self.selected_metadata_path:
             metadata_file_path = self.selected_metadata_path
-        elif hasattr(self, 'selected_file_path'):
+        elif self.selected_file_path:
             metadata_file_path = os.path.join(METADATA_FOLDER, f"metadata_{os.path.basename(self.selected_file_path)}")
         else:
             QMessageBox.warning(self, "Error", "No file selected to save.")

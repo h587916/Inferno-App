@@ -1,7 +1,9 @@
+/* Global label settings */
 QLabel {
     font-size: 16px;
 }
 
+/* Main title and section subtitles */
 QLabel#title {
     font-size: 30px;
     font-weight: bold;
@@ -10,4 +12,18 @@ QLabel#title {
 QLabel#subtitle {
     font-size: 18px;
     font-weight: bold;
+}
+
+/* Colored frames for the About text and feature boxes */
+QFrame#aboutTextFrame, QFrame#featureBox {
+    background-color: #F9FBFF;  /* light background */
+    border: 1px solid #cccccc;
+    border-radius: 5px;
+}
+
+/* Feature title inside the colored feature boxes */
+QLabel#featureTitle {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 5px;
 }

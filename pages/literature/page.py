@@ -1,33 +1,46 @@
 import importlib.resources
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QTextBrowser
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QHBoxLayout, QTextBrowser, QFrame, QSizePolicy
+)
 from PySide6.QtCore import Qt
-
 
 class LiteraturePage(QWidget):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
 
-        # Add a title
+        # Main title
         title_label = QLabel("Literature - Bayesian Methods")
         title_label.setObjectName("title")
         title_label.setAlignment(Qt.AlignHCenter)
         layout.addWidget(title_label)
 
-        # Add a horizontal layout to hold the content
+        # Horizontal layout for the two sections; reduced top margin here
         content_layout = QHBoxLayout()
-        content_layout.setContentsMargins(40, 100, 40, 0)  # left, top, right, bottom
+        content_layout.setContentsMargins(40, 40, 40, 100)  # left, top, right, bottom
         content_layout.setAlignment(Qt.AlignHCenter)
 
+        # --- Section 1: Literature Explaining the Method ---
         method_layout = QVBoxLayout()
         method_layout.setAlignment(Qt.AlignHCenter)
-        method_layout.setContentsMargins(0, 0, 40, 0)  # left, top, right, bottom
-        #method_layout.setSpacing(10) 
-        method_label = QLabel("Literature Explaining the Method")
-        method_label.setObjectName("subtitle")
-        method_layout.addWidget(method_label)
+        method_layout.setContentsMargins(0, 0, 20, 0)  # left, top, right, bottom
 
-        # Literature Explaining the Method
+        # Title outside the box (bigger)
+        method_title = QLabel("Literature Explaining the Method")
+        method_title.setObjectName("litTitle")
+        method_title.setAlignment(Qt.AlignCenter)
+        method_layout.addWidget(method_title)
+
+        # Colored box for the text; size policy set to minimum so it fits the text
+        method_frame = QFrame()
+        method_frame.setObjectName("litBox")
+        method_frame.setFrameShape(QFrame.StyledPanel)
+        method_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        method_frame_layout = QVBoxLayout(method_frame)
+        method_frame_layout.setContentsMargins(10, 10, 10, 10)  # smaller internal margins
+        method_frame_layout.setSpacing(5)
+        method_frame_layout.setAlignment(Qt.AlignTop)
+
         method_browser = QTextBrowser()
         method_browser.setOpenExternalLinks(True)
         method_browser.setHtml(self.generate_literature_list([
@@ -38,17 +51,28 @@ class LiteraturePage(QWidget):
             ("Manski: Treatment Choice With Trial Data", "http://doi.org/10.1080/00031305.2018.1513377"),
             ("Rossi: Bayesian Non- and Semi-parametric Methods and Applications", None)
         ]))
-        method_layout.addWidget(method_browser)
-
+        method_frame_layout.addWidget(method_browser)
+        method_layout.addWidget(method_frame)
         content_layout.addLayout(method_layout)
 
-        # Literature Using the Method
+        # --- Section 2: Literature Using the Method ---
         usage_layout = QVBoxLayout()
         usage_layout.setAlignment(Qt.AlignHCenter)
-        usage_layout.setContentsMargins(40, 0, 0, 0)  # left, top, right, bottom
-        usage_label = QLabel("Literature Using the Method")
-        usage_label.setObjectName("subtitle")
-        usage_layout.addWidget(usage_label)
+        usage_layout.setContentsMargins(20, 0, 0, 0)  # left, top, right, bottom
+
+        usage_title = QLabel("Literature Using the Method")
+        usage_title.setObjectName("litTitle")
+        usage_title.setAlignment(Qt.AlignCenter)
+        usage_layout.addWidget(usage_title)
+
+        usage_frame = QFrame()
+        usage_frame.setObjectName("litBox")
+        usage_frame.setFrameShape(QFrame.StyledPanel)
+        usage_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        usage_frame_layout = QVBoxLayout(usage_frame)
+        usage_frame_layout.setContentsMargins(10, 10, 10, 10)  # smaller internal margins
+        usage_frame_layout.setSpacing(5)
+        usage_frame_layout.setAlignment(Qt.AlignTop)
 
         usage_browser = QTextBrowser()
         usage_browser.setOpenExternalLinks(True)
@@ -63,11 +87,10 @@ class LiteraturePage(QWidget):
             ("Event Horizon Telescope Collaboration: First M87 Event Horizon Telescope Results", "http://doi.org/10.3847/2041-8213/ab0ec7"),
             ("Event Horizon Telescope Collaboration: First Sagittarius-A Event Horizon Telescope Results", "http://doi.org/10.3847/2041-8213/ac6674")
         ]))
-        usage_layout.addWidget(usage_browser)
-
+        usage_frame_layout.addWidget(usage_browser)
+        usage_layout.addWidget(usage_frame)
         content_layout.addLayout(usage_layout)
 
-        # Add the content layout to the main layout
         layout.addLayout(content_layout)
         self.setLayout(layout)
 
@@ -75,7 +98,6 @@ class LiteraturePage(QWidget):
         with importlib.resources.open_text('pages.literature', 'styles.qss') as f:
             style = f.read()
             self.setStyleSheet(style)
-
 
     def generate_literature_list(self, references):
         """Generate HTML for a numbered list of literature references."""

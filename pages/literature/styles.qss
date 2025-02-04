@@ -1,13 +1,25 @@
+/* QTextBrowser styling */
 QTextBrowser {
     font-size: 16px;
 }
 
+/* Main title styling */
 QLabel#title {
     font-size: 24px;
     font-weight: bold;
 }
 
-QLabel#subtitle {
-    font-size: 16px;
+/* Section title styling for literature sections (outside the boxes) */
+QLabel#litTitle {
+    font-size: 18px;
     font-weight: bold;
+    margin-bottom: 5px;
+}
+
+/* Styling for the literature boxes */
+QFrame#litBox {
+    background-color: #F9FBFF;  /* very subtle blue tint */
+    border: 1px solid #CCC;
+    border-radius: 5px;
+    /* No extra padding here because internal margins are set by the layout */
 }
