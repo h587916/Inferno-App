@@ -11,9 +11,10 @@ from pages.plotting.variables import load_variables_into_lists, update_plot_vari
 from pages.plotting.prob_functions import run_pr_function, run_tailpr_function
 from pages.plotting.plotting import plot_pr_probabilities, plot_tailpr_probabilities, plot_tailpr_probabilities_multi, clear_plot
 from pages.plotting.custom_combobox import CustomComboBox
+from appdirs import user_data_dir
 
-APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
 
+APP_DIR = user_data_dir("Inferno App", "inferno")
 UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
 LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
 

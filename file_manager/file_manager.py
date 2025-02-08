@@ -1,11 +1,10 @@
 from PySide6.QtCore import QObject, Signal
 import os
 import shutil
+from appdirs import user_data_dir
 
-APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
-
-if not os.path.exists(APP_DIR):
-    os.makedirs(APP_DIR)
+APP_DIR = user_data_dir("Inferno App", "inferno")
+os.makedirs(APP_DIR, exist_ok=True)
 
 UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
 METADATA_FOLDER = os.path.join(APP_DIR, 'metadata')

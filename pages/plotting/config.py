@@ -1,10 +1,11 @@
 import os
 import json
 import importlib.resources
-
 from PySide6.QtWidgets import (QDialog, QFormLayout, QLabel, QLineEdit, QComboBox, QCheckBox, QHBoxLayout, QPushButton, QMessageBox)
+from appdirs import user_data_dir
 
-APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
+
+APP_DIR = user_data_dir("Inferno App", "inferno")
 USER_CONFIG_PATH = os.path.join(APP_DIR, 'config/plotting_config.json')
 
 

@@ -6,11 +6,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QComboBox, QListWidget, 
                                 QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem, QFileDialog, QHBoxLayout, QLabel, QGridLayout)
 from r_integration.inferno_functions import run_learn
+from appdirs import user_data_dir
 
 
 # Define the base directory paths (consistent with file_manager.py)
-APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
-
+APP_DIR = user_data_dir("Inferno App", "inferno")
 UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
 METADATA_FOLDER = os.path.join(APP_DIR, 'metadata')
 LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
@@ -35,7 +35,7 @@ class LearnPage(QWidget):
         layout.addItem(vertical_spacer, 1, 0, 1, 2)
 
         # --- Group box for left side (run simulation) ---
-        self.simulation_group = QGroupBox("Simulation")
+        self.simulation_group = QGroupBox("Learn")
         self.simulation_group.setAlignment(Qt.AlignHCenter)
 
         simulation_layout = QVBoxLayout()
@@ -66,7 +66,7 @@ class LearnPage(QWidget):
         vertical_spacer = QSpacerItem(0, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
         simulation_layout.addItem(vertical_spacer)
 
-        self.run_button = QPushButton("Simulate")
+        self.run_button = QPushButton("Learn")
         self.run_button.clicked.connect(self.run_learn_function)
         self.run_button.setFixedWidth(button_width)
 
@@ -87,7 +87,7 @@ class LearnPage(QWidget):
         simulation_layout.addStretch()
 
         # --- Group box for right side (results folder list) ---
-        self.results_list_group = QGroupBox("Results Folders")
+        self.results_list_group = QGroupBox("Learnt Folders")
         self.results_list_group.setAlignment(Qt.AlignHCenter)
 
         results_list_layout = QVBoxLayout()

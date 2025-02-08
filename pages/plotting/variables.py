@@ -4,8 +4,10 @@ from PySide6.QtWidgets import QMessageBox, QListWidget, QAbstractItemView, QHBox
 from PySide6.QtCore import Qt
 from pages.plotting.custom_combobox import CustomComboBox
 from pages.plotting.plotting import clear_plot
+from appdirs import user_data_dir
 
-APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
+
+APP_DIR = user_data_dir("Inferno App", "inferno")
 LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
 
 

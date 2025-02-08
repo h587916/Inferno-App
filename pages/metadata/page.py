@@ -9,6 +9,7 @@ from PySide6.QtGui import QFont
 from r_integration.inferno_functions import build_metadata
 import json
 import importlib.resources
+from appdirs import user_data_dir
 
 
 # Load tooltips for the headers and combo boxes
@@ -19,8 +20,7 @@ header_tooltips = tooltips['header_tooltips']
 combobox_item_tooltips = tooltips['combobox_item_tooltips']
 
 # Define the base directory paths (consistent with file_manager.py)
-APP_DIR = os.path.join(os.environ['LOCALAPPDATA'], 'Inferno App')
-
+APP_DIR = user_data_dir("Inferno App", "inferno")
 UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
 METADATA_FOLDER = os.path.join(APP_DIR, 'metadata')
 
