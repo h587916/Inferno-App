@@ -4,12 +4,36 @@ from rpy2.robjects import pandas2ri, StrVector, FloatVector
 from rpy2 import rinterface
 import os
 import shutil
-import multiprocessing
+import subprocess
+
+def get_physical_cores():
+    if os.name == 'nt':  # Windows
+        return get_physical_cores_windows()
+    elif os.name == 'posix':  # macOS/Linux
+        return get_physical_cores_unix()
+    else:
+        return 4
+
+def get_physical_cores_windows():
+    try:
+        output = subprocess.check_output("wmic cpu get NumberOfCores", shell=True)
+        lines = output.decode().strip().split("\n")
+        cores = sum(int(line.strip()) for line in lines if line.strip().isdigit())
+        return cores
+    except Exception as e:
+        print(f"Error fetching physical cores on Windows: {e}")
+        return None
+
+def get_physical_cores_unix():
+    try:
+        output = subprocess.check_output("sysctl -n hw.physicalcpu", shell=True)
+        return int(output.decode().strip())
+    except Exception as e:
+        print(f"Error fetching physical cores on macOS/Linux: {e}")
+        return None
+
 
 inferno = importr('inferno')
-grdevices = importr('grDevices')
-parallel = multiprocessing.cpu_count()
-
 
 def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=None):
     try:
@@ -55,7 +79,7 @@ def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 
             "appendtimestamp": False,
             "appendinfo": False,
             "plottraces": False,
-            "parallel": parallel
+            "parallel": get_physical_cores()
         }
 
         if seed is not None:

@@ -25,7 +25,7 @@ class LearnPage(QWidget):
         button_width = 100
 
         # Title label
-        title_label = QLabel("Monte Carlo Simulation")
+        title_label = QLabel("Monte Carlo Computation")
         title_label.setObjectName("title")
         title_label.setAlignment(Qt.AlignHCenter)
         title_label.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
@@ -372,7 +372,7 @@ class LearnPage(QWidget):
         confirmation = QMessageBox.question(
             self, 
             "Confirm", 
-            f"Run Monte Carlo simulation with:\nMetadata: {metadata_file}\nData: {csv_file}", 
+            f"Run Monte Carlo computation with:\nMetadata: {metadata_file}\nData: {csv_file}", 
             QMessageBox.Yes | QMessageBox.No
         )
         if confirmation == QMessageBox.No:
@@ -385,7 +385,7 @@ class LearnPage(QWidget):
             overwrite_confirmation = QMessageBox.question(
                 self,
                 "Overwrite Warning",
-                f"The folder '{datafile_name}' already exists in the learnt folder.\n Running the simulation will overwrite its contents.\n Do you want to continue?",
+                f"The folder '{datafile_name}' already exists in the learnt folder.\n Running the computation will overwrite its contents.\n Do you want to continue?",
                 QMessageBox.Yes | QMessageBox.No
             )
             if overwrite_confirmation == QMessageBox.No:
@@ -393,7 +393,7 @@ class LearnPage(QWidget):
 
         running_message = QMessageBox(self)
         running_message.setWindowTitle("Running")
-        running_message.setText("Running the Monte Carlo simulation... \n This can take a few minutes, so you might want\n to go grab a cup of coffee while waiting.")
+        running_message.setText("Running the Monte Carlo computation... \n This can take a few minutes, so you might want\n to go grab a cup of coffee while waiting.")
         running_message.setStandardButtons(QMessageBox.NoButton)
         running_message.show()
 
@@ -413,7 +413,7 @@ class LearnPage(QWidget):
         running_message.done(0)
 
         if result:
-            QMessageBox.information(self, "Success", f"Monte Carlo simulation runned successfully!\nThe results are saved in the '{datafile_name}' folder.")
+            QMessageBox.information(self, "Success", f"Monte Carlo computation runned successfully!\nThe results are saved in the '{datafile_name}' folder.")
             self.file_manager.refresh()
         else:
-            QMessageBox.critical(self, "Error", "An error occurred while running the simulation")
+            QMessageBox.critical(self, "Error", "An error occurred while running the computation")
