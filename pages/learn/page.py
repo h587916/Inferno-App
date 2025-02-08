@@ -267,8 +267,7 @@ class LearnPage(QWidget):
                 'nsamples': 3600,
                 'nchains': 60,
                 'maxhours': 'inf',
-                'seed': 16,
-                'parallel': 12
+                'seed': 16
             }
         self.nsamples = config.get('nsamples')
         self.nchains = config.get('nchains')
@@ -279,7 +278,6 @@ class LearnPage(QWidget):
         else:
             self.maxhours = float(maxhours)
         self.seed = config.get('seed')
-        self.parallel = config.get('parallel')
 
     def configure_run_learn(self):
         """Open a dialog to configure run_learn parameters."""
@@ -298,13 +296,11 @@ class LearnPage(QWidget):
             maxhours_str = str(self.maxhours)
         self.maxhours_input = QLineEdit(maxhours_str)
         self.seed_input = QLineEdit(str(self.seed))
-        self.parallel_input = QLineEdit(str(self.parallel))
 
         layout.addRow("nsamples:", self.nsamples_input)
         layout.addRow("nchains:", self.nchains_input)
         layout.addRow("maxhours:", self.maxhours_input)
         layout.addRow("seed:", self.seed_input)
-        layout.addRow("parallel:", self.parallel_input)
 
         doc_link = QLabel("<a href='https://pglpm.github.io/inferno/reference/learn.html'>Parameter Documentation</a>")
         doc_link.setOpenExternalLinks(True)
@@ -348,15 +344,11 @@ class LearnPage(QWidget):
             seed_text = self.seed_input.text().strip()
             self.seed = int(seed_text) if seed_text.isdigit() else None
 
-            parallel_text = self.parallel_input.text().strip()
-            self.parallel = int(parallel_text) if parallel_text.isdigit() else None
-
             config = {
                 'nsamples': self.nsamples,
                 'nchains': self.nchains,
                 'maxhours': 'inf' if self.maxhours == float('inf') else self.maxhours,
-                'seed': self.seed,
-                'parallel': self.parallel
+                'seed': self.seed
             }
 
             with open(USER_CONFIG_PATH, 'w') as f:
@@ -412,7 +404,6 @@ class LearnPage(QWidget):
             metadatafile=metadata_file_path, 
             datafile=csv_file_path, 
             outputdir=outputdir, 
-            parallel=self.parallel, 
             nsamples=self.nsamples, 
             nchains=self.nchains, 
             maxhours=self.maxhours, 

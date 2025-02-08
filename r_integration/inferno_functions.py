@@ -4,9 +4,12 @@ from rpy2.robjects import pandas2ri, StrVector, FloatVector
 from rpy2 import rinterface
 import os
 import shutil
+import multiprocessing
 
 inferno = importr('inferno')
 grdevices = importr('grDevices')
+parallel = multiprocessing.cpu_count()
+
 
 def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=None):
     try:
@@ -37,7 +40,7 @@ def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=
         pandas2ri.deactivate()
 
 
-def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 3600, nchains: int = 60, maxhours: float = float('inf'), parallel: int = None, seed: int = None):
+def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 3600, nchains: int = 60, maxhours: float = float('inf'), seed: int = None):
     try:
         metadatafile_r = StrVector([metadatafile])
         datafile_r = StrVector([datafile])
@@ -51,11 +54,10 @@ def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 
             "maxhours": maxhours,
             "appendtimestamp": False,
             "appendinfo": False,
-            "plottraces": False
+            "plottraces": False,
+            "parallel": parallel
         }
 
-        if parallel is not None:
-            learn_args["parallel"] = parallel
         if seed is not None:
             learn_args["seed"] = seed
 

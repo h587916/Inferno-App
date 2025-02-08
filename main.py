@@ -63,7 +63,6 @@ class MainWindow(QMainWindow):
         sidebar_header_layout.addStretch()
         self.sidebar_layout.addLayout(sidebar_header_layout)
 
-        ### PAGES AND BUTTONS FOR NAVIGATION (WITH CENTRALIZED DEFINITIONS) ###
         # Define a dictionary of pages and their corresponding buttons
         self.pages = {
             "Home": (HomePage(), QPushButton(" Home")),
