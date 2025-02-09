@@ -96,19 +96,17 @@ class PlottingPage(QWidget):
 
         self.probability_function_combobox.setItemData(
             0, 
-            ("Pr: Calculates P(Y | X, data). This function computes the probability of a range of values for a numeric Y-variable \n"
-            "against specified values of X-variables. The results include quantiles representing the variability in the probabilities \n"
-            "if additional data were available, as well as samples of possible probability values. In the plot, the defined range for the \n"
-            "numeric Y-variable is displayed on the X-axis, and the probability values are plotted on the Y-axis."),
+            ("Pr: Calculates the posterior probabilities: <em>P(Y | X, data)</em>, where Y and X are two (non-overlapping) sets of joint variables. \n"
+            "The function also gives quantiles about the possible variability of the probability P(Y | X, newdata, data) that we could have if more learning data were provided. \n"
+            "In the generated plot from this app, the X-axis will show the defined range of a selected numeric Y-variable, and the Y-axis will show the calculated probability values."),
             Qt.ToolTipRole
         )
 
         self.probability_function_combobox.setItemData(
             1, 
-            ("TailPr: Calculates P(Y <= y | X, data) or P(Y > y | X, data). This function computes cumulative probabilities \n"
-            "for a specific value of a numeric Y-variable against specified X-variables. The results include quantiles showing variability \n"
-            "in cumulative probabilities if additional data were available, as well as samples of possible values. The plot displays the numeric \n"
-            "X-variable on the X-axis and the cumulative probabilities on the Y-axis."),
+            ("TailPr: Calculates the cumulative posterior probabilities: <em>P(Y ≤ y | X, data)</em> or <em>P(Y > y | X, data)</em>, where Y and X are two (non-overlapping) sets of joint variables. \n"
+            "The function also returns quantiles representing the uncertainty in the estimated cumulative probability <em>P(Y ≤ y | X, newdata, data)</em>, reflecting how this estimate might vary if additional learning data were provided. \n"
+            "In the generated plot from this app, the X-axis will show the defined range of a selected numeric X-variable, and the Y-axis will show the calculated cumulative probabilities."),
             Qt.ToolTipRole
         )
 

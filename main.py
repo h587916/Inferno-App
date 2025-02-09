@@ -1,8 +1,8 @@
 import sys
 import os
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QStackedWidget, QHBoxLayout, QLabel
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QStackedWidget, QHBoxLayout, QLabel, QStyle, QProxyStyle, QStyleOptionViewItem
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QIcon, QPixmap, QFont, QPalette, QColor
 
 # Import the individual pages from their respective files
 from pages.home.page import HomePage
@@ -180,9 +180,30 @@ class MainWindow(QMainWindow):
         """Create a lambda function to switch to the given page and update the active button."""
         return lambda: self.switch_page(page_widget, button)
 
+class CustomFusionStyle(QProxyStyle):
+    def drawControl(self, element, option, painter, widget):
+        if element == QStyle.CE_ItemViewItem:
+            if isinstance(option, QStyleOptionViewItem):
+                option.backgroundBrush = QColor("white")
+                option.palette.setColor(QPalette.Text, QColor("black"))
+                option.palette.setColor(QPalette.Base, QColor("white"))
+        super().drawControl(element, option, painter, widget)
+
+    def styleHint(self, hint, option=None, widget=None, returnData=None):
+        if hint in {QStyle.SH_ComboBox_Popup, QStyle.SH_ComboBox_UseNativePopup}:
+            return 0  # Disable native pop-ups on all platforms
+        return super().styleHint(hint, option, widget, returnData)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    custom_style = CustomFusionStyle("Fusion")
+    app.setStyle(custom_style)
+    app.setFont(QFont("Arial", 9))
+
+    palette = QPalette()
+    palette.setColor(QPalette.Window, QColor("white"))
+    app.setPalette(palette)
 
     window = MainWindow()
     window.show()

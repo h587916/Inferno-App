@@ -1,8 +1,10 @@
 import os
 import json
 import importlib.resources
-from PySide6.QtWidgets import (QDialog, QFormLayout, QLabel, QLineEdit, QComboBox, QCheckBox, QHBoxLayout, QPushButton, QMessageBox)
+from PySide6.QtWidgets import (QDialog, QFormLayout, QLabel, QLineEdit, QCheckBox, QPushButton, QMessageBox, QScrollArea, QWidget, QVBoxLayout)
+from PySide6.QtCore import Qt
 from appdirs import user_data_dir
+from pages.plotting.custom_combobox import CustomComboBox
 
 
 APP_DIR = user_data_dir("Inferno App", "inferno")
@@ -125,13 +127,17 @@ def update_configuration(page):
 def configure_plot(page):
     """Open a dialog to configure plot settings."""
     dialog = QDialog(page)
-    dialog.setMinimumWidth(300)
+    dialog.setFixedWidth(300)
+    dialog.setMaximumHeight(850)
     dialog.setWindowTitle("Configure Plot Settings")
 
-    layout = QFormLayout()
+    # Scroll area setup
+    scroll_area = QScrollArea()
+    scroll_area.setWidgetResizable(True)
 
-    color_options = ["blue", "green", "red", "black", "yellow", "cyan", "magenta"]
-    lighter_color_options = ["lightblue", "lightgreen", "lightsalmon", "lightgray", "lightyellow", "lightcyan", "lightpink"]
+    # Main content widget inside the scroll area
+    content_widget = QWidget()
+    layout = QFormLayout(content_widget)
 
     # Shared Fields
     page.width_probability_curve_edit = QLineEdit(str(page.config['shared']['width_probability_curve']))
@@ -154,14 +160,9 @@ def configure_plot(page):
     page.draw_x_line_checkbox = QCheckBox()
     page.draw_x_line_checkbox.setChecked(page.config['x_line'].get('draw', False))
     page.x_line_value_edit = QLineEdit(str(page.config['x_line']['value']))
-
-    page.color_x_line_combo = QComboBox()
-    page.color_x_line_combo.addItems(color_options)
-    current_x_line_color = page.config['x_line']['color']
-    if current_x_line_color not in color_options:
-        page.color_x_line_combo.addItem(current_x_line_color)
-    page.color_x_line_combo.setCurrentText(current_x_line_color)
-
+    page.color_x_line_combo = CustomComboBox()
+    page.color_x_line_combo.addItems(["blue", "green", "red", "black", "yellow", "cyan", "magenta"])
+    page.color_x_line_combo.setCurrentText(page.config['x_line']['color'])
     page.width_x_line_edit = QLineEdit(str(page.config['x_line']['width']))
     page.x_line_label_edit = QLineEdit(str(page.config['x_line']['label']))
 
@@ -179,14 +180,9 @@ def configure_plot(page):
     page.draw_y_line_checkbox = QCheckBox()
     page.draw_y_line_checkbox.setChecked(page.config['y_line'].get('draw', False))
     page.y_line_value_edit = QLineEdit(str(page.config['y_line']['value']))
-
-    page.color_y_line_combo = QComboBox()
-    page.color_y_line_combo.addItems(color_options)
-    current_y_line_color = page.config['y_line']['color']
-    if current_y_line_color not in color_options:
-        page.color_y_line_combo.addItem(current_y_line_color)
-    page.color_y_line_combo.setCurrentText(current_y_line_color)
-
+    page.color_y_line_combo = CustomComboBox()
+    page.color_y_line_combo.addItems(["blue", "green", "red", "black", "yellow", "cyan", "magenta"])
+    page.color_y_line_combo.setCurrentText(page.config['y_line']['color'])
     page.width_y_line_edit = QLineEdit(str(page.config['y_line']['width']))
     page.y_line_label_edit = QLineEdit(str(page.config['y_line']['label']))
 
@@ -201,20 +197,12 @@ def configure_plot(page):
     layout.addRow("", QLabel())
 
     # Plot 1
-    page.first_color_probability_curve_combo = QComboBox()
-    page.first_color_probability_curve_combo.addItems(color_options)
-    cpc_1 = page.config['plot_1']['color_probability_curve']
-    if cpc_1 not in color_options:
-        page.first_color_probability_curve_combo.addItem(cpc_1)
-    page.first_color_probability_curve_combo.setCurrentText(cpc_1)
-
-    page.first_color_uncertainty_area_combo = QComboBox()
-    page.first_color_uncertainty_area_combo.addItems(lighter_color_options)
-    cua_1 = page.config['plot_1']['color_uncertainty_area']
-    if cua_1 not in lighter_color_options:
-        page.first_color_uncertainty_area_combo.addItem(cua_1)
-    page.first_color_uncertainty_area_combo.setCurrentText(cua_1)
-
+    page.first_color_probability_curve_combo = CustomComboBox()
+    page.first_color_probability_curve_combo.addItems(["blue", "green", "red", "black", "yellow", "cyan", "magenta"])
+    page.first_color_probability_curve_combo.setCurrentText(page.config['plot_1']['color_probability_curve'])
+    page.first_color_uncertainty_area_combo = CustomComboBox()
+    page.first_color_uncertainty_area_combo.addItems(["lightblue", "lightgreen", "lightsalmon", "lightgray", "lightyellow", "lightcyan", "lightpink"])
+    page.first_color_uncertainty_area_combo.setCurrentText(page.config['plot_1']['color_uncertainty_area'])
     page.first_probability_label_edit = QLineEdit(page.config['plot_1']['probability_label'])
     page.first_uncertantity_label_edit = QLineEdit(page.config['plot_1']['uncertantity_label'])
 
@@ -228,20 +216,12 @@ def configure_plot(page):
     layout.addRow("", QLabel())
 
     # Plot 2
-    page.second_color_probability_curve_combo = QComboBox()
-    page.second_color_probability_curve_combo.addItems(color_options)
-    cpc_2 = page.config['plot_2']['color_probability_curve']
-    if cpc_2 not in color_options:
-        page.second_color_probability_curve_combo.addItem(cpc_2)
-    page.second_color_probability_curve_combo.setCurrentText(cpc_2)
-
-    page.second_color_uncertainty_area_combo = QComboBox()
-    page.second_color_uncertainty_area_combo.addItems(lighter_color_options)
-    cua_2 = page.config['plot_2']['color_uncertainty_area']
-    if cua_2 not in lighter_color_options:
-        page.second_color_uncertainty_area_combo.addItem(cua_2)
-    page.second_color_uncertainty_area_combo.setCurrentText(cua_2)
-
+    page.second_color_probability_curve_combo = CustomComboBox()
+    page.second_color_probability_curve_combo.addItems(["blue", "green", "red", "black", "yellow", "cyan", "magenta"])
+    page.second_color_probability_curve_combo.setCurrentText(page.config['plot_2']['color_probability_curve'])
+    page.second_color_uncertainty_area_combo = CustomComboBox()
+    page.second_color_uncertainty_area_combo.addItems(["lightblue", "lightgreen", "lightsalmon", "lightgray", "lightyellow", "lightcyan", "lightpink"])
+    page.second_color_uncertainty_area_combo.setCurrentText(page.config['plot_2']['color_uncertainty_area'])
     page.second_probability_label_edit = QLineEdit(page.config['plot_2']['probability_label'])
     page.second_uncertantity_label_edit = QLineEdit(page.config['plot_2']['uncertantity_label'])
 
@@ -253,16 +233,19 @@ def configure_plot(page):
     layout.addRow("Probability Label:", page.second_probability_label_edit)
     layout.addRow("Uncertainty Label:", page.second_uncertantity_label_edit)
 
-    # Buttons
-    button_layout = QHBoxLayout()
-    button_layout.addStretch()
+    # Set up the scroll area
+    scroll_area.setWidget(content_widget)
+
+    # Add scroll area and save button to the dialog layout
+    dialog_layout = QVBoxLayout(dialog)
+    dialog_layout.addWidget(scroll_area)
+    dialog_layout.addSpacing(5)
     save_button = QPushButton("Save")
     save_button.setObjectName("saveButton")
     save_button.clicked.connect(lambda: save_configuration(page, dialog))
-    button_layout.addWidget(save_button)
+    dialog_layout.addWidget(save_button, alignment=Qt.AlignRight)
 
-    layout.addRow(button_layout)
-    dialog.setLayout(layout)
+    dialog.setLayout(dialog_layout)
     dialog.exec_()
 
 

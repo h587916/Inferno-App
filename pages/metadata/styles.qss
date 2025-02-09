@@ -30,6 +30,10 @@ QTableWidget::item:selected {
     color: black;
 }
 
+QTableCornerButton::section {
+    background-color: white;
+}
+
 /* HeaderView Style */
 QHeaderView::section {
     background-color: #0288d1;
@@ -98,6 +102,11 @@ QGroupBox {
 /* ComboBox Style */
 QComboBox {
     background-color: white;
+}
+
+QAbstractItemView {
+    background-color: white;
+    border: 1px solid #ddd;
 }
 
 /* Qlabel Style */
