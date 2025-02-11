@@ -1,16 +1,26 @@
 /* ComboBox Style */
-QComboBox {
+CustomComboBox {
     background-color: white;
     color: black;
     border: 1px solid #0288d1;
     padding: 5px;
     border-radius: 5px;
 }
-QComboBox QAbstractItemView {
+
+CustomComboBox QAbstractItemView::item {
+    padding: 1px;
     background-color: white;
     color: black;
-    selection-background-color: #0288d1;
-    selection-color: white;
+}
+
+CustomComboBox QAbstractItemView::item:hover {
+    background-color: #ebe8e8;  
+    color: black;
+}
+
+CustomComboBox QAbstractItemView::item:selected {
+    background-color: #ebe8e8; 
+    color: black;
 }
 
 /* Button Style */
@@ -107,6 +117,10 @@ QDialog {
 } 
 
 /* Qlabel Style */
+QLabel {
+    font-size: 16px;
+}
+
 QLabel#title {
     font-size: 24px;
     font-weight: bold;

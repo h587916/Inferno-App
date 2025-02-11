@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from PySide6.QtWidgets import QMessageBox, QListWidget, QAbstractItemView, QHBoxLayout, QLabel, QLineEdit, QWidget, QSizePolicy
 from PySide6.QtCore import Qt
-from pages.plotting.custom_combobox import CustomComboBox
+from pages.custom_combobox import CustomComboBox
 from pages.plotting.plotting import clear_plot
 from appdirs import user_data_dir
 
@@ -52,6 +52,7 @@ def adjust_list_widget_height(list_widget, max_visible_items=20):
     row_height = list_widget.sizeHintForRow(0) if list_widget.count() > 0 else 20
     total_height = row_height * visible_items + 2 * list_widget.frameWidth()
     list_widget.setFixedHeight(total_height)
+    list_widget.setMinimumHeight(40)
 
 def get_metadata_for_selected_value(self, variable_name):
     """Retrieve metadata for a single selected variable from the metadata.csv file."""
@@ -85,7 +86,14 @@ def get_metadata_for_selected_value(self, variable_name):
     except Exception as e:
         QMessageBox.critical(self, "Error", f"Failed to retrieve metadata for {variable_name}: {str(e)}")
         return {}
-        
+
+
+def is_numeric(self, variable):
+    """Check if a variable is numeric based on its metadata."""
+    var_metadata = self.metadata_dict.get(variable, {})
+    var_type = var_metadata.get("type", "").lower()
+    return var_type == "continuous" or (var_type == "ordinal" and "options" not in var_metadata)
+
 
 def update_plot_variable_combobox(self, selected_vars):
         """Update the plot variable combobox based on the selected function type."""
@@ -98,10 +106,8 @@ def update_plot_variable_combobox(self, selected_vars):
             return
 
         added_any_numeric = False
-
         for var in selected_vars:
-            var_type = self.metadata_dict.get(var, {}).get("type", "")
-            if var_type == "continuous" or (var_type == "ordinal" and "options" not in self.metadata_dict[var]):
+            if is_numeric(self, var):
                 self.plot_variable_combobox.addItem(var)
                 added_any_numeric = True
 
@@ -146,14 +152,16 @@ def update_categorical_variable_combobox(self):
     if self.plot_variable_combobox.currentIndex() < 0:
         self.categorical_variable_combobox.clear()
         self.categorical_variable_frame.hide()
-        return 
+        return
+    elif self.plot_variable_combobox.currentText() in self.selected_x_values:
+        variables = self.selected_y_values
+    elif self.plot_variable_combobox.currentText() in self.selected_y_values:
+        variables = self.selected_x_values
     
     categorical_variables = []
 
-    for variable in self.selected_x_values:
-        var_metadata = self.metadata_dict.get(variable, {})
-        var_type = var_metadata.get("type")
-        if var_type == "nominal" or (var_type == "ordinal" and "options" in var_metadata):
+    for variable in variables:
+        if not is_numeric(self, variable):
             categorical_variables.append(variable)
 
     if categorical_variables:
@@ -214,27 +222,22 @@ def update_values_layout_pr(self):
     """Update the values layout based on the selected variables."""
     clear_list_widget(self)
     variables = self.selected_y_values + self.selected_x_values
-
-    longest_variable = max(variables, key=len, default="")
-    font_metrics = self.fontMetrics()
-    label_width = font_metrics.horizontalAdvance(f"{longest_variable} = ")
-
     plot_variable = self.plot_variable_combobox.currentText()
     categorical_variable = self.categorical_variable_combobox.currentText()
 
-    for variable in variables:
-        row_layout = QHBoxLayout()
-        row_layout.setContentsMargins(0, 0, 0, 0)
+    font = QLabel().font()
+    font.setPointSize(10)
 
+    for variable in variables:
         label = QLabel(f"{variable} = ")
-        label.setAlignment(Qt.AlignRight)
-        label.setFixedWidth(label_width)
+        label.setObjectName("variables")
 
         var_type = self.metadata_dict.get(variable, {}).get("type")
 
         if variable == categorical_variable:
             options = self.metadata_dict[variable].get("options", [])
             list_widget = QListWidget()
+            list_widget.setFont(font)
             list_widget.itemSelectionChanged.connect(lambda: limit_selection(self, list_widget, 2))
             list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
             list_widget.addItems(options)
@@ -249,9 +252,7 @@ def update_values_layout_pr(self):
             list_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             list_widget.setObjectName("listWidget")
 
-            row_layout.addWidget(label)
-            row_layout.addWidget(list_widget)
-            self.values_layout.addRow(row_layout)
+            self.values_layout.addRow(label, list_widget)
 
             self.input_fields[variable] = (label, list_widget)
             self.current_list_widget = list_widget
@@ -259,14 +260,13 @@ def update_values_layout_pr(self):
         elif var_type == "nominal" or (var_type == "ordinal" and "options" in self.metadata_dict[variable]):
             options = self.metadata_dict[variable].get("options", [])
             input_box = CustomComboBox()
+            input_box.setFont(font)
             input_box.addItems(options)
             if variable in self.variable_values:
                 input_box.setCurrentText(self.variable_values[variable])
             input_box.currentIndexChanged.connect(lambda: value_changed(self))
 
-            row_layout.addWidget(label)
-            row_layout.addWidget(input_box)
-            self.values_layout.addRow(row_layout)
+            self.values_layout.addRow(label, input_box)
             self.input_fields[variable] = (label, input_box)
 
         elif var_type == "continuous" or (var_type == "ordinal" and "options" not in self.metadata_dict[variable]):
@@ -275,6 +275,7 @@ def update_values_layout_pr(self):
                 ranged_layout.setAlignment(Qt.AlignLeft)
 
                 start_label = QLabel("From ")
+                start_label.setObjectName("variables")
                 start_input = QLineEdit()
                 start_input.setObjectName("inputField")
                 start_input.setFixedSize(70, 30)
@@ -283,6 +284,7 @@ def update_values_layout_pr(self):
                 start_input.setAlignment(Qt.AlignCenter)
 
                 end_label = QLabel(" To ")
+                end_label.setObjectName("variables")
                 end_input = QLineEdit()
                 end_input.setObjectName("inputField")
                 end_input.setFixedSize(70, 30)
@@ -302,9 +304,7 @@ def update_values_layout_pr(self):
                 ranged_layout.addWidget(end_input)
                 ranged_layout.addStretch()
 
-                row_layout.addWidget(label)
-                row_layout.addLayout(ranged_layout)
-                self.values_layout.addRow(row_layout)
+                self.values_layout.addRow(label, ranged_layout)
                 self.input_fields[variable] = (label, {'start': start_input, 'end': end_input, 'start_label': start_label, 'end_label': end_label})
 
             else:
@@ -318,9 +318,7 @@ def update_values_layout_pr(self):
                 if variable in self.variable_values:
                     input_box.setText(self.variable_values[variable])
 
-                row_layout.addWidget(label)
-                row_layout.addWidget(input_box)
-                self.values_layout.addRow(row_layout)
+                self.values_layout.addRow(label, input_box)
                 self.input_fields[variable] = (label, input_box)
 
         else:
@@ -346,21 +344,15 @@ def update_values_layout_tailpr(self):
     clear_input_layout(self)
 
     variables = self.selected_y_values + self.selected_x_values
-
-    longest_variable = max(variables, key=len, default="")
-    font_metrics = self.fontMetrics()
-    label_width = font_metrics.horizontalAdvance(f"{longest_variable} = ")
     plot_var = self.plot_variable_combobox.currentText()
-
     categorical_variable = self.categorical_variable_combobox.currentText()
+    
+    font = QLabel().font()
+    font.setPointSize(10)
 
     for variable in variables:
-        row_layout = QHBoxLayout()
-        row_layout.setContentsMargins(0, 0, 0, 0)
-
-        label = QLabel(f"{variable}")
-        label.setAlignment(Qt.AlignRight)
-        label.setFixedWidth(label_width)
+        label = QLabel(f"{variable} = ")
+        label.setObjectName("variables")
 
         var_metadata = self.metadata_dict.get(variable, {})
         var_type = var_metadata.get("type", "")
@@ -370,6 +362,7 @@ def update_values_layout_tailpr(self):
             tailpr_y_layout.setAlignment(Qt.AlignLeft)
 
             inequality_box = CustomComboBox()
+            inequality_box.setFont(font)
             inequality_box.addItems(["<", ">", "<=", ">="])
             inequality_box.currentIndexChanged.connect(lambda: value_changed(self))
 
@@ -392,9 +385,7 @@ def update_values_layout_tailpr(self):
             tailpr_y_layout.addWidget(value_input)
             tailpr_y_layout.addStretch()
 
-            row_layout.addWidget(label)
-            row_layout.addLayout(tailpr_y_layout)
-            self.values_layout.addRow(row_layout)
+            self.values_layout.addRow(label, tailpr_y_layout)
 
             self.input_fields[variable] = (
                 label,
@@ -407,6 +398,7 @@ def update_values_layout_tailpr(self):
         elif variable == categorical_variable:
             options = self.metadata_dict[variable].get("options", [])
             list_widget = QListWidget()
+            list_widget.setFont(font)
             list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
             list_widget.addItems(options)
             list_widget.itemSelectionChanged.connect(lambda: limit_selection(self, list_widget, 2))
@@ -421,9 +413,7 @@ def update_values_layout_tailpr(self):
             list_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             list_widget.setObjectName("listWidget")
 
-            row_layout.addWidget(label)
-            row_layout.addWidget(list_widget)
-            self.values_layout.addRow(row_layout)
+            self.values_layout.addRow(label, list_widget)
 
             self.input_fields[variable] = (label, list_widget)
             self.current_list_widget = list_widget 
@@ -431,14 +421,13 @@ def update_values_layout_tailpr(self):
         elif var_type == "nominal" or (var_type == "ordinal" and "options" in var_metadata):
             options = var_metadata.get("options", [])
             input_box = CustomComboBox()
+            input_box.setFont(font)
             input_box.addItems(options)
             if variable in self.variable_values:
                 input_box.setCurrentText(self.variable_values[variable])
             input_box.currentIndexChanged.connect(lambda: value_changed(self))
 
-            row_layout.addWidget(label)
-            row_layout.addWidget(input_box)
-            self.values_layout.addRow(row_layout)
+            self.values_layout.addRow(label, input_box)
             self.input_fields[variable] = (label, input_box)
 
         elif var_type == "continuous" or (var_type == "ordinal" and "options" not in var_metadata):
@@ -446,6 +435,7 @@ def update_values_layout_tailpr(self):
             ranged_layout.setAlignment(Qt.AlignLeft)
 
             start_label = QLabel("From ")
+            start_label.setObjectName("variables")
             start_input = QLineEdit()
             start_input.setObjectName("inputField")
             start_input.setFixedSize(70, 30)
@@ -454,6 +444,7 @@ def update_values_layout_tailpr(self):
             start_input.setAlignment(Qt.AlignCenter)
 
             end_label = QLabel(" To ")
+            end_label.setObjectName("variables")
             end_input = QLineEdit()
             end_input.setObjectName("inputField")
             end_input.setFixedSize(70, 30)
@@ -478,9 +469,7 @@ def update_values_layout_tailpr(self):
             ranged_layout.addWidget(end_input)
             ranged_layout.addStretch()
 
-            row_layout.addWidget(label)
-            row_layout.addLayout(ranged_layout)
-            self.values_layout.addRow(row_layout)
+            self.values_layout.addRow(label, ranged_layout)
 
             self.input_fields[variable] = (
                 label,

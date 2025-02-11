@@ -6,11 +6,21 @@ CustomComboBox {
     padding: 5px;
     border-radius: 5px;
 }
-CustomComboBox QAbstractItemView {
+
+CustomComboBox QAbstractItemView::item {
+    padding: 1px;
     background-color: white;
     color: black;
-    selection-background-color: #0288d1;
-    selection-color: white;
+}
+
+CustomComboBox QAbstractItemView::item:hover {
+    background-color: #ebe8e8;  
+    color: black;
+}
+
+CustomComboBox QAbstractItemView::item:selected {
+    background-color: #ebe8e8; 
+    color: black;
 }
 
 /* Button Style */
@@ -132,6 +142,14 @@ QDialog {
 } 
 
 /* QLabel Style */
+QLabel {
+    font-size: 14px;
+}
+
+QLabel#variables {
+    font-size: 14px;
+}
+
 QLabel#title {
     font-size: 24px;
     font-weight: bold;
@@ -154,6 +172,7 @@ QFrame#plotFrame {
 
 /* QLineEdit Style */
 QLineEdit#inputField {
+    font-size: 12px;
     border: 1px solid #0288d1;
 }
 
@@ -163,9 +182,19 @@ QListWidget {
     border-radius: 5px;
     padding: 5px;
 }
-QListWidget#listWidget {
-   padding: 1px;
+
+QListWidget::item:hover {
+    background-color: #ebe8e8;
 }
+
+QListWidget::item:selected {
+    background-color: #ebe8e8;
+    color: black;
+}
+
+QListWidget#listWidget {
+    padding: 2px;
+ }
 
 /* QToolTip Style */
 QToolTip {

@@ -17,6 +17,9 @@ def plot_pr_probabilities(self):
     probabilities_values = np.array(self.probabilities_values)
     probabilities_quantiles = np.array(self.probabilities_quantiles)
 
+    probabilities_values = fix_prob_shape(probabilities_values)
+    probabilities_quantiles = fix_quantiles_shape(probabilities_quantiles)
+
     num_variables = probabilities_values.shape[1]
 
     plot_variable = self.plot_variable_combobox.currentText()
@@ -31,9 +34,11 @@ def plot_pr_probabilities(self):
     for i in range(num_variables):
         plot_key = f"plot_{i+1}"
 
+        # If 3D => (nPoints, nVars, nQuantiles):
         if probabilities_quantiles.ndim == 3:
             lower_quantiles = probabilities_quantiles[:, i, 0]
             upper_quantiles = probabilities_quantiles[:, i, -1]
+        # If 2D => (nPoints, nQuantiles):
         elif probabilities_quantiles.ndim == 2 and probabilities_quantiles.shape[1] >= 2:
             lower_quantiles = probabilities_quantiles[:, 0]
             upper_quantiles = probabilities_quantiles[:, -1]
@@ -90,6 +95,36 @@ def plot_pr_probabilities(self):
     ax.legend()
 
     self.plot_canvas.draw()
+
+def fix_prob_shape(probs):
+    """Ensure shape is (nPoints, nVars)."""
+    if probs.ndim == 1:
+        # e.g. shape (nPoints,); reshape to (nPoints, 1)
+        return probs.reshape(-1, 1)
+    elif probs.ndim == 2:
+        n0, n1 = probs.shape
+        # If n0 < n1 but x_values has length n1, transpose:
+        if n0 < n1:
+            return probs.T
+        else:
+            return probs
+    # If higher dims, assume already correct or raise error if needed
+    return probs
+
+def fix_quantiles_shape(q):
+    """Ensure shape is (nPoints, nVars, nQuantiles). For instance, if shape is (nVars, nPoints, 2) -> we need (nPoints, nVars, 2)."""
+    if q.ndim == 2:
+        # e.g. shape (nPoints, 2) => (nPoints, 1, 2)
+        n0, n1 = q.shape
+        return q.reshape(n0, 1, n1)
+    elif q.ndim == 3:
+        n0, n1, n2 = q.shape
+        # If n0 < n1 but matches x_values length => transpose first two axes
+        if n0 < n1:
+            return np.transpose(q, (1, 0, 2))
+        else:
+            return q
+    return q
 
 def plot_tailpr_probabilities(self):
     """Plot cumulative probabilities and quantiles for tailPr."""

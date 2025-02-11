@@ -3,10 +3,12 @@ import json
 import shutil
 import importlib.resources
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QComboBox, QListWidget, 
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QListWidget, 
                                 QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem, QFileDialog, QHBoxLayout, QLabel, QGridLayout)
+from PySide6.QtGui import QFont
 from r_integration.inferno_functions import run_learn
 from appdirs import user_data_dir
+from pages.custom_combobox import CustomComboBox
 
 
 # Define the base directory paths (consistent with file_manager.py)
@@ -35,18 +37,21 @@ class LearnPage(QWidget):
         layout.addItem(vertical_spacer, 1, 0, 1, 2)
 
         # --- Group box for left side (run simulation) ---
-        self.simulation_group = QGroupBox("Learn")
+        self.simulation_group = QGroupBox("Computation")
         self.simulation_group.setAlignment(Qt.AlignHCenter)
 
         simulation_layout = QVBoxLayout()
         simulation_layout.setContentsMargins(50, 50, 50, 0)  # left, top, right, bottom
         self.simulation_group.setLayout(simulation_layout)
         
-        fixed_label_width = 120
+        fixed_label_width = 160
+        combo_font = QFont()
+        combo_font.setPointSize(12)
         file_layout = QHBoxLayout()
-        csv_label = QLabel("Select a CSV File:")
+        csv_label = QLabel("Select CSV File:")
         csv_label.setFixedWidth(fixed_label_width)
-        self.csv_combobox = QComboBox()
+        self.csv_combobox = CustomComboBox()
+        self.csv_combobox.setFont(combo_font)
         self.csv_combobox.currentIndexChanged.connect(self.check_selection)
         file_layout.addWidget(csv_label)
         file_layout.addWidget(self.csv_combobox)
@@ -55,9 +60,10 @@ class LearnPage(QWidget):
         simulation_layout.addSpacing(5)
 
         meta_layout = QHBoxLayout()
-        metadata_label = QLabel("Select a Metadata File:")
+        metadata_label = QLabel("Select Metadata File:")
         metadata_label.setFixedWidth(fixed_label_width)
-        self.metadata_combobox = QComboBox()
+        self.metadata_combobox = CustomComboBox()
+        self.metadata_combobox.setFont(combo_font)
         self.metadata_combobox.currentIndexChanged.connect(self.check_selection)
         meta_layout.addWidget(metadata_label)
         meta_layout.addWidget(self.metadata_combobox)
@@ -97,6 +103,9 @@ class LearnPage(QWidget):
 
         list_layout = QVBoxLayout()
         self.results_list = QListWidget()
+        item_font = QFont()
+        item_font.setPointSize(12)
+        self.results_list.setFont(item_font)
         self.results_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         list_layout.addWidget(self.results_list)
 

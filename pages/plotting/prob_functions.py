@@ -22,8 +22,9 @@ def run_pr_function(self):
     y_values = get_input_value(self, self.selected_y_values)
     x_values = get_input_value(self, self.selected_x_values)
 
-    Y_df = parse_and_validate_input_values(y_values)
-    X_df = parse_and_validate_input_values(x_values)
+    Y_df = parse_and_validate_input_values(self, y_values)
+    X_df = parse_and_validate_input_values(self, x_values)
+
     if Y_df is None or X_df is None:
         return
 
@@ -49,8 +50,8 @@ def run_tailpr_function(self):
 
     y_values = get_input_value(self, self.selected_y_values)
     x_values = get_input_value(self, self.selected_x_values)
-    Y_df = parse_and_validate_input_values(y_values)
-    X_df = parse_and_validate_input_values(x_values)
+    Y_df = parse_and_validate_input_values(self, y_values)
+    X_df = parse_and_validate_input_values(self, x_values)
     if Y_df is None or X_df is None:
         return
 
@@ -189,19 +190,23 @@ def all_values_filled(self):
                     return False
     return True
 
-def parse_and_validate_input_values(values):
+def parse_and_validate_input_values(self, values):
     """Parse and validate input values and expand shorter arrays."""
     parsed_values = {}
     max_length = 0
 
     for var_name, value in values.items():
+        var_metadata = self.metadata_dict.get(var_name, {})
+        has_options = "options" in var_metadata 
+
+        # 1) Range inputs { 'start': ..., 'end': ... }
         if isinstance(value, dict) and 'start' in value:
             start_str = value['start']
             end_str = value['end']
             try:
                 start_val = float(start_str)
             except ValueError:
-                QMessageBox.warning(None, "Error", f"Invalid numeric input for start value in {var_name}: {start_str}")
+                QMessageBox.warning(self, "Error", f"Invalid numeric input for start value in {var_name}: {start_str}")
                 return None
 
             if not end_str:
@@ -210,11 +215,11 @@ def parse_and_validate_input_values(values):
                 try:
                     end_val = float(end_str)
                 except ValueError:
-                    QMessageBox.warning(None, "Error", f"Invalid numeric input for end value in {var_name}: {end_str}")
+                    QMessageBox.warning(self, "Error", f"Invalid numeric input for end value in {var_name}: {end_str}")
                     return None
 
                 if end_val < start_val:
-                    QMessageBox.warning(None, "Error", f"End value must be greater than start value for {var_name}")
+                    QMessageBox.warning(self, "Error", f"End value must be greater than start value for {var_name}")
                     return None
 
                 num_points = int(abs(end_val - start_val)) + 1
@@ -223,28 +228,35 @@ def parse_and_validate_input_values(values):
                 else:
                     variable_value = np.linspace(start_val, end_val, num=num_points).tolist()
 
+        # 2) tailPr inequality inputs { 'inequality': ..., 'value': ... }
         elif isinstance(value, dict) and 'inequality' in value and 'value' in value:
             numeric_value = value['value']
             try:
                 numeric_val = float(numeric_value)
             except ValueError:
-                QMessageBox.warning(None, "Error", f"Invalid numeric input for {var_name}: {numeric_value}")
+                QMessageBox.warning(self, "Error", f"Invalid numeric input for {var_name}: {numeric_value}")
                 return None
             variable_value = [numeric_val]
 
+        # 3) Multi-selection or ComboBox => list
         elif isinstance(value, list):
             if not value:
-                QMessageBox.warning(None, "Error", f"No values selected for {var_name}")
+                QMessageBox.warning(self, "Error", f"No values selected for {var_name}")
                 return None
             variable_value = value
 
+        # 4) Single string from a combo box or line edit
         else:
             str_val = str(value).strip()
-            try:
-                float_val = float(str_val)
-                variable_value = [float_val]
-            except ValueError:
+            if has_options:
                 variable_value = [str_val]
+            else:
+                try:
+                    float_val = float(str_val)
+                except ValueError:
+                    QMessageBox.warning(self, "Error", f"Invalid numeric input for '{var_name}': {str_val}")
+                    return None
+                variable_value = [float_val]
 
         parsed_values[var_name] = variable_value
         max_length = max(max_length, len(variable_value))

@@ -72,6 +72,9 @@ class MetadataPage(QWidget):
         self.file_management_panel = QWidget()
         layout = QGridLayout()
 
+        item_font = QFont()
+        item_font.setPointSize(12)
+
         # Title label
         self.panel_title = QLabel("File Management & Metadata Generation")
         self.panel_title.setObjectName("title")
@@ -90,6 +93,7 @@ class MetadataPage(QWidget):
         self.file_list_group.setLayout(file_list_layout)
 
         self.file_list = QListWidget()
+        self.file_list.setFont(item_font)
         self.file_list.itemClicked.connect(lambda item: self.file_selected(item, UPLOAD_FOLDER))
         file_list_layout.addWidget(self.file_list)
         file_list_layout.setContentsMargins(20, 40, 10, 10) # left, top, right, bottom
@@ -125,6 +129,7 @@ class MetadataPage(QWidget):
         self.metadata_list_group.setLayout(metadata_list_layout)
         
         self.metadata_list = QListWidget()
+        self.metadata_list.setFont(item_font)
         self.metadata_list.itemClicked.connect(lambda item: self.file_selected(item, METADATA_FOLDER))
         metadata_list_layout.addWidget(self.metadata_list)
         metadata_list_layout.setContentsMargins(10, 40, 20, 10) # left, top, right, bottom

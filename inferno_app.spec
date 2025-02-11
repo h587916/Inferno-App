@@ -14,7 +14,7 @@ a = Analysis(
         'pages/learn/page.py', 
         'pages/plotting/page.py',
         'pages/plotting/config.py',
-        'pages/plotting/custom_combobox.py',
+        'pages/custom_combobox.py',
         'pages/plotting/prob_functions.py',
         'pages/plotting/plotting.py',
         'pages/plotting/variables.py', 

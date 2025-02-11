@@ -6,11 +6,12 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton
                                 QListWidget, QFileDialog, QAbstractItemView, QFormLayout, 
                                 QMessageBox, QSizePolicy, QAbstractItemView, QSpacerItem)
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from pages.plotting.config import load_configuration, reset_configuration, write_configuration, configure_plot
 from pages.plotting.variables import load_variables_into_lists, update_plot_variable_combobox, sync_variable_selections, clear_input_layout, update_values_layout_pr, clear_list_widget, update_values_layout_tailpr, update_categorical_variable_combobox, get_input_value
 from pages.plotting.prob_functions import run_pr_function, run_tailpr_function
 from pages.plotting.plotting import plot_pr_probabilities, plot_tailpr_probabilities, plot_tailpr_probabilities_multi, clear_plot
-from pages.plotting.custom_combobox import CustomComboBox
+from pages.custom_combobox import CustomComboBox
 from appdirs import user_data_dir
 
 
@@ -38,6 +39,9 @@ class PlottingPage(QWidget):
         write_configuration(self)
 
         main_layout = QVBoxLayout()
+
+        font = QFont()
+        font.setPointSize(11)
 
         # Set page title
         title_layout = QVBoxLayout()
@@ -71,6 +75,7 @@ class PlottingPage(QWidget):
 
         learnt_label = QLabel("Select a learnt folder:")
         self.pr_learnt_combobox = CustomComboBox()
+        self.pr_learnt_combobox.setFont(font)
         self.pr_learnt_combobox.currentIndexChanged.connect(self.on_learnt_folder_selected)
 
         learnt_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
@@ -91,6 +96,7 @@ class PlottingPage(QWidget):
 
         probability_function_label = QLabel("Select a probability function:")
         self.probability_function_combobox = CustomComboBox()
+        self.probability_function_combobox.setFont(font)
         self.probability_function_combobox.addItems(["Pr", "tailPr"])
         self.probability_function_combobox.setCurrentIndex(-1)
 
@@ -129,6 +135,7 @@ class PlottingPage(QWidget):
         variable_selection_layout.addWidget(self.Y_label_widget)
 
         self.Y_listwidget = QListWidget()
+        self.Y_listwidget.setFont(font)
         self.Y_listwidget.itemSelectionChanged.connect(self.on_Y_variable_selected)
         variable_selection_layout.addWidget(self.Y_listwidget)
 
@@ -139,6 +146,7 @@ class PlottingPage(QWidget):
         variable_selection_layout.addWidget(self.X_label_widget)
 
         self.X_listwidget = QListWidget()
+        self.X_listwidget.setFont(font)
         self.X_listwidget.hide()
         self.X_listwidget.setSelectionMode(QAbstractItemView.MultiSelection)
         self.X_listwidget.itemSelectionChanged.connect(self.on_X_variable_selected)
@@ -154,8 +162,10 @@ class PlottingPage(QWidget):
         plot_variable_layout.setContentsMargins(0, 0, 0, 0)
         plot_variable_layout.setSpacing(5)
 
-        plot_variable_label = QLabel("Select the variable to plot against the X-axis:") # TODO: oppdater tekst
+        plot_variable_label = QLabel("Variable to plot against the X-axis:")
         self.plot_variable_combobox = CustomComboBox()
+        self.plot_variable_combobox = CustomComboBox()
+        self.plot_variable_combobox.setFont(font)
         self.plot_variable_combobox.currentIndexChanged.connect(self.on_plot_variable_selected)
 
         plot_variable_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
@@ -174,8 +184,9 @@ class PlottingPage(QWidget):
         categorical_variable_layout.setContentsMargins(0, 0, 0, 0)
         categorical_variable_layout.setSpacing(5)
 
-        categorical_variable_label = QLabel("Plot a categorical X-variable with multiple values?")
+        categorical_variable_label = QLabel("Categorical variable with two values?")
         self.categorical_variable_combobox = CustomComboBox()
+        self.categorical_variable_combobox.setFont(font)
         self.categorical_variable_combobox.currentIndexChanged.connect(self.on_categorical_variable_selected)
 
         categorical_variable_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
@@ -199,6 +210,7 @@ class PlottingPage(QWidget):
 
         values_widget = QWidget()
         self.values_layout = QFormLayout()
+        self.values_layout.setLabelAlignment(Qt.AlignRight)
         values_widget.setLayout(self.values_layout)
         input_layout.addWidget(values_widget)
 
@@ -455,7 +467,7 @@ class PlottingPage(QWidget):
         sync_variable_selections(self, added_variables, removed_variables)
 
         if self.selected_func == "Pr":
-            update_plot_variable_combobox(self, self.selected_y_values)
+            update_plot_variable_combobox(self, self.selected_y_values + self.selected_x_values)
 
     def on_X_variable_selected(self):
         """Update the selected X variables and input fields based on the selected items."""
@@ -471,6 +483,9 @@ class PlottingPage(QWidget):
 
         if self.selected_func == "tailPr":
             update_plot_variable_combobox(self, self.selected_x_values)
+
+        if self.selected_func == "Pr":
+            update_plot_variable_combobox(self, self.selected_y_values + self.selected_x_values)
 
     def on_plot_variable_selected(self, index):
         """Update the the values layout based on the selected plot variable."""
