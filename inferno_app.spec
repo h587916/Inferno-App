@@ -26,6 +26,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('icons/home.svg', 'icons'),
+        ('icons/check.svg', 'icons'),
         ('icons/metadata.svg', 'icons'),
         ('icons/learn.svg', 'icons'),
         ('icons/plotting.svg', 'icons'),

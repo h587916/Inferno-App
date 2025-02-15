@@ -98,31 +98,43 @@ def update_configuration(self):
 
         line_labels = []
         if is_numeric(self, plot_variable):
-            # Just use the other values; replicate the label for each plotted variable.
-            label = ", ".join(other_values) if other_values else "Line 1"
-            line_labels = [label] * num_variables
-        else:
-            # Otherwise, if the x-axis variable is categorical, append its values.
-            if categorical_variable and categorical_variable in self.variable_values:
-                categorical_values = self.variable_values[categorical_variable]
-                for cat_val in categorical_values:
-                    line_label_parts = list(other_values) + [cat_val]
-                    line_labels.append(", ".join(line_label_parts))
+            categorical_y_values = []
+            categorical_x_values = []
+
+            for y_var in self.selected_y_values:
+                if y_var in self.variable_values:
+                    selected_y_values = self.variable_values[y_var]
+                    if isinstance(selected_y_values, list) and len(selected_y_values) > 1:
+                        categorical_y_values.append((y_var, selected_y_values))
+
+            for x_var in self.selected_x_values:
+                if x_var in self.variable_values:
+                    selected_x_values = self.variable_values[x_var]
+                    if isinstance(selected_x_values, list) and len(selected_x_values) > 1:
+                        categorical_x_values.append((x_var, selected_x_values))
+
+            line_labels = []
+
+            # Case 1: Categorical Y-values exist
+            if categorical_y_values:
+                for y_var, y_vals in categorical_y_values:
+                    for y_val in y_vals:
+                        label_parts = [y_val] 
+                        label_parts.extend(other_values)
+                        line_labels.append(", ".join(label_parts))
+
+            # Case 2: Categorical X-values exist (and Y-variable is numeric)
+            elif categorical_x_values:
+                for x_var, x_vals in categorical_x_values:
+                    for x_val in x_vals:
+                        label_parts = [x_val]
+                        label_parts.extend(other_values)
+                        line_labels.append(", ".join(label_parts))
+
+            # Case 3: Default fallback if no categorical Y/X-values exist
             else:
-                if num_variables > 1:
-                    if plot_variable in self.Y.columns:
-                        x_line_values = self.Y[plot_variable].unique()
-                    elif plot_variable in self.X.columns:
-                        x_line_values = self.X[plot_variable].unique()
-                    else:
-                        x_line_values = [f"Line {i+1}" for i in range(num_variables)]
-                    x_line_values = list(map(str, x_line_values))
-                    for val in x_line_values:
-                        line_label_parts = list(other_values) + [val]
-                        line_labels.append(", ".join(line_label_parts))
-                else:
-                    label = ", ".join(other_values) if other_values else "Line 1"
-                    line_labels.append(label)
+                label = ", ".join(other_values) if other_values else "Probability"
+                line_labels = [label] * num_variables
 
         for i, label in enumerate(line_labels, start=1):
             plot_key = f"plot_{i}"
