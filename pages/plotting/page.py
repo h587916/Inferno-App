@@ -66,6 +66,10 @@ class PlottingPage(QWidget):
         left_layout = QVBoxLayout()
         left_layout.setAlignment(Qt.AlignTop)
 
+        input_label = QLabel("Data selection")
+        input_label.setObjectName("inputLabel")
+        left_layout.addWidget(input_label)
+
         # Learnt folder selection
         self.learn_frame = QFrame()
         self.learn_frame.setObjectName("learnFrame")
@@ -130,6 +134,10 @@ class PlottingPage(QWidget):
         self.variable_selection_frame.setObjectName("variableSelectionFrame")
         self.variable_selection_frame.hide()
         variable_selection_layout = QVBoxLayout(self.variable_selection_frame)
+
+        input_label = QLabel("Variable selection")
+        input_label.setObjectName("inputLabel")
+        variable_selection_layout.addWidget(input_label)
 
         self.Y_label_widget = QLabel("")
         variable_selection_layout.addWidget(self.Y_label_widget)

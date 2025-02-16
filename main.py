@@ -199,7 +199,6 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     custom_style = CustomFusionStyle("Fusion")
     app.setStyle(custom_style)
-    app.setFont(QFont("Arial", 9))
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor("white"))

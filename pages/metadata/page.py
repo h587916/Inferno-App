@@ -5,7 +5,6 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTableWidget, 
                                QComboBox, QGridLayout, QListWidget, QGroupBox, QStackedWidget, QMessageBox, QFileDialog,
                                QLabel, QSpacerItem, QSizePolicy, QHBoxLayout, QLineEdit, QInputDialog)
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
 from r_integration.inferno_functions import build_metadata
 import json
 import importlib.resources
@@ -72,9 +71,6 @@ class MetadataPage(QWidget):
         self.file_management_panel = QWidget()
         layout = QGridLayout()
 
-        item_font = QFont()
-        item_font.setPointSize(12)
-
         # Title label
         self.panel_title = QLabel("File Management & Metadata Generation")
         self.panel_title.setObjectName("title")
@@ -93,7 +89,6 @@ class MetadataPage(QWidget):
         self.file_list_group.setLayout(file_list_layout)
 
         self.file_list = QListWidget()
-        self.file_list.setFont(item_font)
         self.file_list.itemClicked.connect(lambda item: self.file_selected(item, UPLOAD_FOLDER))
         file_list_layout.addWidget(self.file_list)
         file_list_layout.setContentsMargins(20, 40, 10, 10) # left, top, right, bottom
@@ -129,7 +124,6 @@ class MetadataPage(QWidget):
         self.metadata_list_group.setLayout(metadata_list_layout)
         
         self.metadata_list = QListWidget()
-        self.metadata_list.setFont(item_font)
         self.metadata_list.itemClicked.connect(lambda item: self.file_selected(item, METADATA_FOLDER))
         metadata_list_layout.addWidget(self.metadata_list)
         metadata_list_layout.setContentsMargins(10, 40, 20, 10) # left, top, right, bottom
@@ -227,7 +221,6 @@ class MetadataPage(QWidget):
 
 
     ####### File Management Panel Functions #######    
-
     def load_files(self):
         """Load the list of uploaded files from the FileManager."""
         self.file_list.clear()
@@ -314,8 +307,8 @@ class MetadataPage(QWidget):
         else:
             QMessageBox.warning(self, "Error", "No file selected to rename.")
 
-    ####### Metadata Editing Panel Functions #######
 
+    ####### Metadata Editing Panel Functions #######
     def display_metadata(self, metadata_file_path):
         """Display metadata in the table widget with tooltips."""
         metadata_df = pd.read_csv(metadata_file_path)
@@ -326,14 +319,10 @@ class MetadataPage(QWidget):
         self.table_widget.setColumnCount(len(metadata_df.columns))
         self.table_widget.setHorizontalHeaderLabels(metadata_df.columns)
 
-        header_font = QFont()
-        header_font.setPointSize(16)
-
         header_tooltip_dict = {column_name: header_tooltips.get(column_name, '') for column_name in metadata_df.columns}
 
         for i, column_name in enumerate(metadata_df.columns):
             header_item = self.table_widget.horizontalHeaderItem(i)
-            header_item.setFont(header_font)
             header_item.setToolTip(header_tooltip_dict[column_name])
 
         row_height = 40

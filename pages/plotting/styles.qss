@@ -5,6 +5,7 @@ CustomComboBox {
     border: 1px solid #0288d1;
     padding: 5px;
     border-radius: 5px;
+    font-size: 14px;
 }
 
 CustomComboBox QAbstractItemView::item {
@@ -158,7 +159,7 @@ QLabel#plotTitle {
     font-size: 18px;
 }
 QLabel#inputLabel {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: bold;
 }
 QLabel#sectionLabel {
@@ -171,6 +172,10 @@ QFrame#plotFrame {
 }
 
 /* QLineEdit Style */
+QLineEdit {
+    font-size: 14px;
+}
+
 QLineEdit#inputField {
     font-size: 12px;
     border: 1px solid #0288d1;
@@ -181,6 +186,7 @@ QListWidget {
     border: 1px solid #0288d1;
     border-radius: 5px;
     padding: 5px;
+    font-size: 14px;
 }
 
 QListWidget::item:hover {

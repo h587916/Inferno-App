@@ -1,6 +1,7 @@
 /* MessageBox Style */
 QMessageBox {
     background-color: white;
+    font-size: 14px;
 }
 QMessageBox QPushButton {
     background-color: #0288d1;
@@ -41,6 +42,7 @@ QHeaderView::section {
     font-weight: bold;
     padding: 5px;
     border: 1px solid #ddd;
+    font-size: 14px;
 }
 
 /* Button Style */
@@ -72,6 +74,7 @@ QListWidget {
     border-radius: 5px;
     padding: 5px;
     background-color: white;
+    font-size: 14px;
 }
 QListWidget::item {
     padding: 10px;

@@ -5,7 +5,6 @@ import importlib.resources
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QListWidget, 
                                 QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem, QFileDialog, QHBoxLayout, QLabel, QGridLayout)
-from PySide6.QtGui import QFont
 from r_integration.inferno_functions import run_learn
 from appdirs import user_data_dir
 from pages.custom_combobox import CustomComboBox
@@ -45,13 +44,10 @@ class LearnPage(QWidget):
         self.simulation_group.setLayout(simulation_layout)
         
         fixed_label_width = 160
-        combo_font = QFont()
-        combo_font.setPointSize(12)
         file_layout = QHBoxLayout()
         csv_label = QLabel("Select CSV File:")
         csv_label.setFixedWidth(fixed_label_width)
         self.csv_combobox = CustomComboBox()
-        self.csv_combobox.setFont(combo_font)
         self.csv_combobox.currentIndexChanged.connect(self.check_selection)
         file_layout.addWidget(csv_label)
         file_layout.addWidget(self.csv_combobox)
@@ -63,7 +59,6 @@ class LearnPage(QWidget):
         metadata_label = QLabel("Select Metadata File:")
         metadata_label.setFixedWidth(fixed_label_width)
         self.metadata_combobox = CustomComboBox()
-        self.metadata_combobox.setFont(combo_font)
         self.metadata_combobox.currentIndexChanged.connect(self.check_selection)
         meta_layout.addWidget(metadata_label)
         meta_layout.addWidget(self.metadata_combobox)
@@ -103,9 +98,6 @@ class LearnPage(QWidget):
 
         list_layout = QVBoxLayout()
         self.results_list = QListWidget()
-        item_font = QFont()
-        item_font.setPointSize(12)
-        self.results_list.setFont(item_font)
         self.results_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         list_layout.addWidget(self.results_list)
 
