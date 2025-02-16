@@ -162,6 +162,8 @@ def configure_plot(self):
     self.alpha_uncertainty_area_edit = QLineEdit(str(self.config['shared']['alpha_uncertainty_area']))
     self.xlabel_edit = QLineEdit(str(self.config['shared']['x_label']))
     self.ylabel_edit = QLineEdit(str(self.config['shared']['y_label']))
+    self.y_axis_min_edit = QLineEdit(str(self.config['shared']['y_axis_min']))
+    self.y_axis_max_edit = QLineEdit(str(self.config['shared']['y_axis_max']))
 
     general_label = QLabel("General")
     general_label.setObjectName("sectionLabel")
@@ -171,6 +173,8 @@ def configure_plot(self):
     layout.addRow("Probability Curve Width:", self.width_probability_curve_edit)
     layout.addRow("X-label:", self.xlabel_edit)
     layout.addRow("Y-label:", self.ylabel_edit)
+    layout.addRow("Y-axis Min Value:", self.y_axis_min_edit)
+    layout.addRow("Y-axis Max Value:", self.y_axis_max_edit)
     layout.addRow("", QLabel())
 
     # X-line
@@ -182,6 +186,9 @@ def configure_plot(self):
     self.color_x_line_combo.setCurrentText(self.config['x_line']['color'])
     self.width_x_line_edit = QLineEdit(str(self.config['x_line']['width']))
     self.x_line_label_edit = QLineEdit(str(self.config['x_line']['label']))
+    self.linestyle_x_line_combo = CustomComboBox()
+    self.linestyle_x_line_combo.addItems(["-", "--", "-.", ":"])
+    self.linestyle_x_line_combo.setCurrentText(self.config['x_line']['linestyle'])
 
     x_line_label = QLabel("X-line")
     x_line_label.setObjectName("sectionLabel")
@@ -190,6 +197,7 @@ def configure_plot(self):
     layout.addRow("X-value:", self.x_line_value_edit)
     layout.addRow("Color:", self.color_x_line_combo)
     layout.addRow("Line Width:", self.width_x_line_edit)
+    layout.addRow("Line Style:", self.linestyle_x_line_combo)
     layout.addRow("Label:", self.x_line_label_edit)
     layout.addRow("", QLabel())
 
@@ -202,6 +210,9 @@ def configure_plot(self):
     self.color_y_line_combo.setCurrentText(self.config['y_line']['color'])
     self.width_y_line_edit = QLineEdit(str(self.config['y_line']['width']))
     self.y_line_label_edit = QLineEdit(str(self.config['y_line']['label']))
+    self.linestyle_y_line_combo = CustomComboBox()
+    self.linestyle_y_line_combo.addItems(["-", "--", "-.", ":"])
+    self.linestyle_y_line_combo.setCurrentText(self.config['y_line']['linestyle'])
 
     y_line_label = QLabel("Y-line")
     y_line_label.setObjectName("sectionLabel")
@@ -210,6 +221,7 @@ def configure_plot(self):
     layout.addRow("Y-value:", self.y_line_value_edit)
     layout.addRow("Color:", self.color_y_line_combo)
     layout.addRow("Line Width:", self.width_y_line_edit)
+    layout.addRow("Line Style:", self.linestyle_y_line_combo)
     layout.addRow("Label:", self.y_line_label_edit)
     layout.addRow("", QLabel())
 
@@ -222,6 +234,9 @@ def configure_plot(self):
     self.first_color_uncertainty_area_combo.setCurrentText(self.config['plot_1']['color_uncertainty_area'])
     self.first_probability_label_edit = QLineEdit(self.config['plot_1']['probability_label'])
     self.first_uncertantity_label_edit = QLineEdit(self.config['plot_1']['uncertantity_label'])
+    self.first_probability_linestyle_combo = CustomComboBox()
+    self.first_probability_linestyle_combo.addItems(["-", "--", "-.", ":"])
+    self.first_probability_linestyle_combo.setCurrentText(self.config['plot_1']['linestyle'])
 
     first_label = QLabel("1st Plot")
     first_label.setObjectName("sectionLabel")
@@ -230,6 +245,7 @@ def configure_plot(self):
     layout.addRow("Uncertainty Area Color:", self.first_color_uncertainty_area_combo)
     layout.addRow("Probability Label:", self.first_probability_label_edit)
     layout.addRow("Uncertainty Label:", self.first_uncertantity_label_edit)
+    layout.addRow("Line Style:", self.first_probability_linestyle_combo)
     layout.addRow("", QLabel())
 
     # Plot 2
@@ -241,6 +257,9 @@ def configure_plot(self):
     self.second_color_uncertainty_area_combo.setCurrentText(self.config['plot_2']['color_uncertainty_area'])
     self.second_probability_label_edit = QLineEdit(self.config['plot_2']['probability_label'])
     self.second_uncertantity_label_edit = QLineEdit(self.config['plot_2']['uncertantity_label'])
+    self.second_probability_linestyle_combo = CustomComboBox()
+    self.second_probability_linestyle_combo.addItems(["-", "--", "-.", ":"])
+    self.second_probability_linestyle_combo.setCurrentText(self.config['plot_2']['linestyle'])
 
     second_label = QLabel("2nd Plot")
     second_label.setObjectName("sectionLabel")
@@ -249,6 +268,7 @@ def configure_plot(self):
     layout.addRow("Uncertainty Area Color:", self.second_color_uncertainty_area_combo)
     layout.addRow("Probability Label:", self.second_probability_label_edit)
     layout.addRow("Uncertainty Label:", self.second_uncertantity_label_edit)
+    layout.addRow("Line Style:", self.second_probability_linestyle_combo)
 
     # Set up the scroll area
     scroll_area.setWidget(content_widget)
@@ -275,33 +295,39 @@ def save_configuration(self, dialog):
                 "y_label": self.ylabel_edit.text(),
                 "width_probability_curve": validate_and_parse_float(self.width_probability_curve_edit.text(), "Probability Curve Width"),
                 "width_uncertainty_area": validate_and_parse_float(self.width_uncertainty_area_edit.text(), "Uncertainty Area Width"),
-                "alpha_uncertainty_area": validate_and_parse_float(self.alpha_uncertainty_area_edit.text(), "Uncertainty Area Alpha")
+                "alpha_uncertainty_area": validate_and_parse_float(self.alpha_uncertainty_area_edit.text(), "Uncertainty Area Alpha"),
+                "y_axis_min": validate_and_parse_optional_float(self.y_axis_min_edit.text(), "Y-axis Min Value"),
+                "y_axis_max": validate_and_parse_optional_float(self.y_axis_max_edit.text(), "Y-axis Max Value")
             },
             "x_line": {
                 "draw": self.draw_x_line_checkbox.isChecked(),
                 "value": validate_and_parse_float(self.x_line_value_edit.text(), "X-value"),
                 "color": self.color_x_line_combo.currentText(),
                 "width": validate_and_parse_float(self.width_x_line_edit.text(), "Line Width"),
-                "label": self.x_line_label_edit.text()
+                "label": self.x_line_label_edit.text(),
+                "linestyle": self.linestyle_x_line_combo.currentText()
             },
             "y_line": {
                 "draw": self.draw_y_line_checkbox.isChecked(),
                 "value": validate_and_parse_float(self.y_line_value_edit.text(), "Y-value"),
                 "color": self.color_y_line_combo.currentText(),
                 "width": validate_and_parse_float(self.width_y_line_edit.text(), "Line Width"),
-                "label": self.y_line_label_edit.text()
+                "label": self.y_line_label_edit.text(),
+                "linestyle": self.linestyle_y_line_combo.currentText()
             },
             "plot_1": {
                 "color_probability_curve": self.first_color_probability_curve_combo.currentText(),
                 "color_uncertainty_area": self.first_color_uncertainty_area_combo.currentText(),
                 "probability_label": self.first_probability_label_edit.text(),
-                "uncertantity_label": self.first_uncertantity_label_edit.text()
+                "uncertantity_label": self.first_uncertantity_label_edit.text(),
+                "linestyle": self.first_probability_linestyle_combo.currentText()
             },
             "plot_2": {
                 "color_probability_curve": self.second_color_probability_curve_combo.currentText(),
                 "color_uncertainty_area": self.second_color_uncertainty_area_combo.currentText(),
                 "probability_label": self.second_probability_label_edit.text(),
-                "uncertantity_label": self.second_uncertantity_label_edit.text()
+                "uncertantity_label": self.second_uncertantity_label_edit.text(),
+                "linestyle": self.second_probability_linestyle_combo.currentText()
             }
         }
 
@@ -324,6 +350,11 @@ def validate_and_parse_float(value, field_name):
     except ValueError:
         raise ValueError(f"Invalid value for {field_name}: {value}. Please enter a numeric value.")
 
+def validate_and_parse_optional_float(value, field_name):
+    """Parse a float if the value is provided; otherwise return None."""
+    if value.strip() == "None":
+        return None
+    return validate_and_parse_float(value, field_name)
 
 def validate_configuration(self, config):
     """Validate the configuration values."""

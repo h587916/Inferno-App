@@ -59,7 +59,7 @@ def plot_pr_probabilities(self):
             prob_smooth, 
             color=self.config[plot_key]['color_probability_curve'], 
             linewidth=self.config['shared']['width_probability_curve'], 
-            linestyle='-', 
+            linestyle=self.config[plot_key]['linestyle'], 
             label=self.config[plot_key]['probability_label']
         )
 
@@ -73,12 +73,15 @@ def plot_pr_probabilities(self):
             linewidth=self.config['shared']['width_uncertainty_area'],
             label=self.config[plot_key]['uncertantity_label']
         )
+        if self.config['shared']['y_axis_min'] is not None and self.config['shared']['y_axis_max'] is not None:
+            ax.set_ylim(self.config['shared']['y_axis_min'], self.config['shared']['y_axis_max'])
 
     if self.config['x_line'].get('draw', False):
         ax.axvline(
             x=self.config['x_line']['value'], 
             color=self.config['x_line']['color'], 
-            linestyle='--', linewidth=self.config['x_line']['width'], 
+            linestyle=self.config['x_line']['linestyle'], 
+            linewidth=self.config['x_line']['width'], 
             label=self.config['x_line']['label']
         )
 
@@ -86,7 +89,8 @@ def plot_pr_probabilities(self):
         ax.axhline(
             y=self.config['y_line']['value'], 
             color=self.config['y_line']['color'], 
-            linestyle='--', linewidth=self.config['y_line']['width'], 
+            linestyle=self.config['y_line']['linestyle'], 
+            linewidth=self.config['y_line']['width'], 
             label=self.config['y_line']['label']
         )
 
@@ -166,7 +170,7 @@ def plot_tailpr_probabilities(self):
         prob_smooth,
         color=self.config['plot_1']['color_probability_curve'],
         linewidth=self.config['shared']['width_probability_curve'],
-        linestyle='-',
+        linestyle=self.config['plot_1']['linestyle'],
         label=self.config['plot_1']['probability_label']
     )
 
@@ -181,11 +185,14 @@ def plot_tailpr_probabilities(self):
         label=self.config['plot_1']['uncertantity_label'] 
     )
 
+    if self.config['shared']['y_axis_min'] is not None and self.config['shared']['y_axis_max'] is not None:
+        ax.set_ylim(self.config['shared']['y_axis_min'], self.config['shared']['y_axis_max'])
+
     if self.config['x_line'].get('draw', True):
         ax.axvline(
             x=self.config['x_line']['value'],
             color=self.config['x_line']['color'],
-            linestyle='--',
+            linestyle=self.config['x_line']['linestyle'],
             linewidth=self.config['x_line']['width'],
             label=self.config['x_line']['label']
         )
@@ -194,7 +201,7 @@ def plot_tailpr_probabilities(self):
         ax.axhline(
             y=self.config['y_line']['value'],
             color=self.config['y_line']['color'],
-            linestyle='--',
+            linestyle=self.config['y_line']['linestyle'],
             linewidth=self.config['y_line']['width'],
             label=self.config['y_line']['label']
         )
@@ -253,7 +260,7 @@ def plot_tailpr_probabilities_multi(self, categories):
             prob_smooth,
             color=self.config[plot_key]['color_probability_curve'], 
             linewidth=self.config['shared']['width_probability_curve'], 
-            linestyle='-', 
+            linestyle=self.config[plot_key]['linestyle'], 
             label=self.config[plot_key]['probability_label']
         )
 
@@ -268,11 +275,14 @@ def plot_tailpr_probabilities_multi(self, categories):
             label=self.config[plot_key]['uncertantity_label']
         )
 
+        if self.config['shared']['y_axis_min'] is not None and self.config['shared']['y_axis_max'] is not None:
+            ax.set_ylim(self.config['shared']['y_axis_min'], self.config['shared']['y_axis_max'])
+
     if self.config['x_line'].get('draw', False):
         ax.axvline(
             x=self.config['x_line']['value'], 
             color=self.config['x_line']['color'], 
-            linestyle='--', 
+            linestyle=self.config['x_line']['linestyle'], 
             linewidth=self.config['x_line']['width'], 
             label=self.config['x_line']['label']
         )
@@ -281,7 +291,7 @@ def plot_tailpr_probabilities_multi(self, categories):
         ax.axhline(
             y=self.config['y_line']['value'], 
             color=self.config['y_line']['color'], 
-            linestyle='--', 
+            linestyle=self.config['y_line']['linestyle'], 
             linewidth=self.config['y_line']['width'], 
             label=self.config['y_line']['label']
         )
