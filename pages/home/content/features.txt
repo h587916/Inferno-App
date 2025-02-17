@@ -1,6 +1,6 @@
 Metadata:
     The metadata page is created for managing your datafiles and generating the belonging metadatafile. 
-    The main purpose of this feature is to prepare a metadatafile that's needed for running the Monte Carlo Simulation in the learn page.
+    The main purpose of this feature is to prepare a metadatafile that's needed for running the Monte Carlo Computation in the learn page.
     The metadatafile is basically a CSV-file describing the variables in your dataset, and the structure of this file will have an impact on the end results.
     A metadatafile will be generation based on assumptions, using the <a href="https://pglpm.github.io/inferno/reference/metadatatemplate.html">metadatatemplate</a> function from the Inferno R package.
     It's your job to make sure that the generated metadatafile is actually correct, and make any needed adjustments. 
@@ -8,17 +8,17 @@ Metadata:
 <br>
 
 Learn:
-    The learn page is where you run the Monte Carlo Simulation. 
+    The learn page is where you run the Monte Carlo Computation. 
     This is done by using the <a href="https://pglpm.github.io/inferno/reference/learn.html">learn </a> function from the Inferno R package. 
     In the app this function is simplified by using a lot of default parameters, but you have the option to configure the most important parameters. 
-    All you need for running the simulation is your datafile and the belonging metadatafile. 
-    Once the simulation is done, the results are saved in a "learnt" folder.
+    All you need for running the somputation is your datafile and the belonging metadatafile. 
+    Once the somputation is done, the results are saved in a "learnt" folder.
     This folder will be used when calcutalting probabilities, mutualinfo, etc. 
-    It's worth mentioning that the simulation could potensially be very time-consuming (depending on your computer hardware, and the size of your datafile).
+    It's worth mentioning that the computation could potensially be very time-consuming (depending on your computer hardware, and the size of your datafile).
 <br>
 
 Plotting:
-    The plotting page is where you generate probability plots based on your simulation results. 
+    The plotting page is where you generate probability plots based on your computation results. 
     You can choose between two probability functions from the Inferno R package, <a href="https://pglpm.github.io/inferno/reference/Pr.html">Pr </a> and <a href="https://pglpm.github.io/inferno/reference/tailPr.html">tailPr </a>, each offering a different perspective. 
     You can see examples of different plots the two functions can produce <a href="https://pglpm.github.io/inferno/articles/vignette_parkinson.html#drawing-inferences">here </a>.
     <br><br>
