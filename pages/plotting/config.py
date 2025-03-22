@@ -4,7 +4,7 @@ import importlib.resources
 from PySide6.QtWidgets import (QDialog, QFormLayout, QLabel, QLineEdit, QCheckBox, QPushButton, QMessageBox, QScrollArea, QWidget, QVBoxLayout)
 from PySide6.QtCore import Qt
 from appdirs import user_data_dir
-from pages.custom_combobox import CustomComboBox
+from pages.shared.custom_combobox import CustomComboBox
 from pages.plotting.variables import is_numeric
 
 

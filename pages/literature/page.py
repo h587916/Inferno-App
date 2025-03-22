@@ -1,7 +1,5 @@
 import importlib.resources
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QHBoxLayout, QTextBrowser, QFrame, QSizePolicy
-)
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QTextBrowser, QFrame, QSizePolicy
 from PySide6.QtCore import Qt
 
 class LiteraturePage(QWidget):
@@ -95,9 +93,14 @@ class LiteraturePage(QWidget):
         self.setLayout(layout)
 
         # Apply the stylesheet
+        with importlib.resources.open_text('pages.shared', 'styles.qss') as f:
+            common_style = f.read()
+
         with importlib.resources.open_text('pages.literature', 'styles.qss') as f:
-            style = f.read()
-            self.setStyleSheet(style)
+            page_style = f.read()
+            
+        self.setStyleSheet(common_style + page_style)
+
 
     def generate_literature_list(self, references):
         """Generate HTML for a numbered list of literature references."""

@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLa
                                 QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem, QFileDialog, QHBoxLayout, QLabel, QGridLayout)
 from r_integration.inferno_functions import run_learn
 from appdirs import user_data_dir
-from pages.custom_combobox import CustomComboBox
+from pages.shared.custom_combobox import CustomComboBox
 
 
 # Define the base directory paths (consistent with file_manager.py)
@@ -148,7 +148,7 @@ class LearnPage(QWidget):
         self.setLayout(layout)
 
         # Apply the stylesheet
-        with importlib.resources.open_text('pages.learn', 'styles.qss') as f:
+        with importlib.resources.open_text('pages.shared', 'styles.qss') as f:
             style = f.read()
             self.setStyleSheet(style)
 

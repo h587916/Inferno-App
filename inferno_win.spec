@@ -1,4 +1,4 @@
-# inferno_app.spec
+# inferno_win.spec
 # -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
@@ -9,12 +9,12 @@ hiddenimports = collect_submodules('file_manager')
 a = Analysis(
     [
         'main.py', 
+        'pages/shared/custom_combobox.py',
         'pages/home/page.py', 
         'pages/metadata/page.py', 
         'pages/learn/page.py', 
         'pages/plotting/page.py',
         'pages/plotting/config.py',
-        'pages/custom_combobox.py',
         'pages/plotting/prob_functions.py',
         'pages/plotting/plotting.py',
         'pages/plotting/variables.py', 
@@ -34,6 +34,7 @@ a = Analysis(
         ('icons/literature.svg', 'icons'),
         ('icons/inferno_image.png', 'icons'),
         ('icons/inferno_symbol.png', 'icons'),
+        ('pages/shared/styles.qss', 'pages/shared'),
         ('pages/metadata/styles.qss', 'pages/metadata'),
         ('pages/home/styles.qss', 'pages/home'),
         ('pages/learn/styles.qss', 'pages/learn'),

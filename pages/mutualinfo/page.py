@@ -18,6 +18,6 @@ class MutualInfoPage(QWidget):
         self.setLayout(main_layout)
 
         # Apply the stylesheet
-        with importlib.resources.open_text('pages.mutualinfo', 'styles.qss') as f:
+        with importlib.resources.open_text('pages.shared', 'styles.qss') as f:
             style = f.read()
             self.setStyleSheet(style)

@@ -1,21 +1,3 @@
-/* MessageBox Style */
-QMessageBox {
-    background-color: white;
-    font-size: 14px;
-}
-QMessageBox QPushButton {
-    background-color: #0288d1;
-    color: white;
-    font-size: 12px;
-    width: 40px;
-    height: 20px;
-    border-radius: 5px;
-    padding: 5px;
-}
-QMessageBox QPushButton:hover {
-    background-color: #0277bd;
-}
-
 /* TableWidget Style */
 QTableWidget {
     background-color: #f9f9f9;
@@ -45,63 +27,6 @@ QHeaderView::section {
     font-size: 14px;
 }
 
-/* Button Style */
-QPushButton {
-    background-color: #0288d1;
-    color: white;
-    border-radius: 5px;
-    padding: 8px;
-}
-QPushButton:hover {
-    background-color: #0277bd;
-}
-QPushButton:pressed {
-    background-color: #01579b;
-}
-QPushButton#deleteButton {
-    background-color: #d32f2f;
-}
-QPushButton#deleteButton:hover {
-    background-color: #c62828;
-}
-QPushButton#deleteButton:pressed {
-    background-color: #b71c1c;
-}
-
-/* ListWidget Style */
-QListWidget {
-    border: 1px solid black;
-    border-radius: 5px;
-    padding: 5px;
-    background-color: white;
-    font-size: 14px;
-}
-QListWidget::item {
-    padding: 10px;
-}
-QListWidget::item:selected {
-    background-color: #f0f0f0;
-    color: black;
-}
-QListWidget::item:hover {
-    background-color: #e0e0e0;
-    color: black;
-}
-
-/* ToolTip Style */
-QToolTip {
-    background-color: white;
-    color: black;
-    border: 1px solid black;
-    padding: 10px;
-    font-size: 14px;
-}
-
-/* Title of the file lists */
-QGroupBox {
-    font-size: 20px;
-}
-
 /* ComboBox Style */
 QComboBox {
     background-color: white;
@@ -110,27 +35,4 @@ QComboBox {
 QAbstractItemView {
     background-color: white;
     border: 1px solid #ddd;
-}
-
-/* Qlabel Style */
-QLabel#title {
-    font-size: 24px;
-    font-weight: bold;
-}
-
-/* Input Dialog Style */
-QInputDialog {
-    background-color: white;
-}
-QInputDialog QPushButton {
-    background-color: #0288d1;
-    color: rgb(255, 255, 255);
-    font-size: 12px;
-    width: 40px;
-    height: 20px;
-    border-radius: 5px;
-    padding: 5px;
-}
-QInputDialog QPushButton:hover {
-    background-color: #0277bd;
 }

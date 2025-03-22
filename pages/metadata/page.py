@@ -59,9 +59,13 @@ class MetadataPage(QWidget):
 
         self.setLayout(layout)
 
+        with importlib.resources.open_text('pages.shared', 'styles.qss') as f:
+            common_style = f.read()
+
         with importlib.resources.open_text('pages.metadata', 'styles.qss') as f:
-            style = f.read()
-            self.setStyleSheet(style)
+            page_style = f.read()
+
+        self.setStyleSheet(common_style + page_style)
 
         self.file_manager.files_updated.connect(self.load_files)
         self.file_manager.refresh()

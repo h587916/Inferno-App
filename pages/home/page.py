@@ -2,16 +2,14 @@ import os
 import sys
 import re
 import importlib.resources
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QHBoxLayout, QScrollArea,
-    QFrame, QGridLayout, QSizePolicy
-)
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QScrollArea, QFrame, QGridLayout, QSizePolicy
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 
 class HomePage(QWidget):
     def __init__(self):
         super().__init__()
+
         if getattr(sys, 'frozen', False):
             base_path = sys._MEIPASS
         else:
@@ -125,9 +123,13 @@ class HomePage(QWidget):
         self.setLayout(main_layout)
 
         # Apply the stylesheet
+        with importlib.resources.open_text('pages.shared', 'styles.qss') as f:
+            common_style = f.read()
+
         with importlib.resources.open_text('pages.home', 'styles.qss') as f:
-            style = f.read()
-            self.setStyleSheet(style)
+            page_style = f.read()
+        
+        self.setStyleSheet(common_style + page_style)
 
     def read_text_file(self, resource):
         """Read the content of a text file and return it as a string."""

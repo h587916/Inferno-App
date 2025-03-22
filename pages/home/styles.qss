@@ -1,80 +1,18 @@
-/* Global label settings */
-QLabel {
-    font-size: 16px;
-}
-
-/* Main title and section subtitles */
-QLabel#title {
-    font-size: 30px;
-    font-weight: bold;
-}
-
+/* QLabel Style */
 QLabel#subtitle {
     font-size: 18px;
     font-weight: bold;
 }
 
-/* Colored frames for the About text and feature boxes */
-QFrame#aboutTextFrame, QFrame#featureBox {
-    background-color: #F9FBFF;  /* light background */
-    border: 1px solid #cccccc;
-    border-radius: 5px;
-}
-
-/* Feature title inside the colored feature boxes */
 QLabel#featureTitle {
     font-size: 16px;
     font-weight: bold;
     margin-bottom: 5px;
 }
 
-/* ScrollBar Style */
-QScrollBar:vertical {
-    border: 1px solid #CCCCCC;
-    background: #f0f0f0;
-    width: 16px;
-    margin: 16px 0 16px 0;
-}
-
-QScrollBar::handle:vertical {
-    background: #A0A0A0;  /* Neutral grey handle */
-    min-height: 20px;
-    border-radius: 8px;
-}
-
-QScrollBar::handle:vertical:hover {
-    background: #8F8F8F;  /* Darker grey on hover for better visibility */
-}
-
-QScrollBar::handle:vertical:pressed {
-    background: #7A7A7A;  /* Dark grey to indicate pressing */
-}
-
-QScrollBar::sub-line:vertical {
-    background: #f0f0f0;
-    height: 16px;
-    subcontrol-origin: margin;
-    subcontrol-position: top;
-    border: 1px solid #CCCCCC;
-    border-radius: 4px;
-}
-
-QScrollBar::add-line:vertical {
-    background: #f0f0f0;
-    height: 16px;
-    subcontrol-origin: margin;
-    subcontrol-position: bottom;
-    border: 1px solid #CCCCCC;
-    border-radius: 4px;
-}
-
-QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
-    border: 1px solid #CCCCCC;
-    width: 3px;
-    height: 3px;
-    background: white;
-}
-
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-    background: none;
+/* QFrame Style */
+QFrame#aboutTextFrame, QFrame#featureBox {
+    background-color: #F9FBFF;  /* light background */
+    border: 1px solid #cccccc;
+    border-radius: 5px;
 }

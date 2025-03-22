@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from PySide6.QtWidgets import QMessageBox, QListWidget, QAbstractItemView, QHBoxLayout, QLabel, QLineEdit, QWidget, QSizePolicy
 from PySide6.QtCore import Qt
-from pages.custom_combobox import CustomComboBox
+from pages.shared.custom_combobox import CustomComboBox
 from pages.plotting.plotting import clear_plot
 from appdirs import user_data_dir
 

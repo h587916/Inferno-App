@@ -1,17 +1,14 @@
 import os
-import numpy as np
 import pandas as pd
 import importlib.resources
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, 
-                                QListWidget, QFileDialog, QAbstractItemView, QFormLayout, 
-                                QMessageBox, QSizePolicy, QAbstractItemView, QSpacerItem)
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QPushButton, QScrollArea, QHBoxLayout, QListWidget, QFileDialog, QAbstractItemView, QFormLayout, QMessageBox, QSizePolicy, QAbstractItemView, QSpacerItem
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from pages.plotting.config import load_configuration, reset_configuration, write_configuration, configure_plot
 from pages.plotting.variables import load_variables_into_lists, update_plot_variable_combobox, sync_variable_selections, clear_input_layout, update_values_layout_pr, clear_list_widget, update_values_layout_tailpr, update_categorical_variable_combobox, get_input_value
 from pages.plotting.prob_functions import run_pr_function, run_tailpr_function
 from pages.plotting.plotting import plot_pr_probabilities, plot_tailpr_probabilities, plot_tailpr_probabilities_multi, clear_plot
-from pages.custom_combobox import CustomComboBox
+from pages.shared.custom_combobox import CustomComboBox
 from appdirs import user_data_dir
 
 
@@ -301,9 +298,13 @@ class PlottingPage(QWidget):
         self.setLayout(main_layout)
 
         # Apply the stylesheet
+        with importlib.resources.open_text('pages.shared', 'styles.qss') as f:
+            common_style = f.read()
+
         with importlib.resources.open_text('pages.plotting', 'styles.qss') as f:
-            style = f.read()
-            self.setStyleSheet(style)
+            page_style = f.read()
+            
+        self.setStyleSheet(common_style + page_style)
 
         # Connect to file manager signals
         self.file_manager.learnt_folders_updated.connect(self.load_learnt_folders)
