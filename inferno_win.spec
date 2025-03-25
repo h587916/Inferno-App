@@ -25,15 +25,15 @@ a = Analysis(
     pathex=['.'],
     binaries=[],
     datas=[
-        ('icons/home.svg', 'icons'),
-        ('icons/check.svg', 'icons'),
-        ('icons/metadata.svg', 'icons'),
-        ('icons/learn.svg', 'icons'),
-        ('icons/plotting.svg', 'icons'),
-        ('icons/mutualinfo.svg', 'icons'),
-        ('icons/literature.svg', 'icons'),
-        ('icons/inferno_image.png', 'icons'),
-        ('icons/inferno_symbol.png', 'icons'),
+        ('resources/home.svg', 'resources'),
+        ('resources/check.svg', 'resources'),
+        ('resources/metadata.svg', 'resources'),
+        ('resources/learn.svg', 'resources'),
+        ('resources/plotting.svg', 'resources'),
+        ('resources/mutualinfo.svg', 'resources'),
+        ('resources/literature.svg', 'resources'),
+        ('resources/inferno_image.png', 'resources'),
+        ('resources/inferno_symbol.png', 'resources'),
         ('pages/shared/styles.qss', 'pages/shared'),
         ('pages/metadata/styles.qss', 'pages/metadata'),
         ('pages/home/styles.qss', 'pages/home'),
@@ -68,7 +68,7 @@ exe = EXE(
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
-    icon='icons/inferno_symbol.ico'
+    icon='resources/inferno_symbol.ico'
 )
 coll = COLLECT(
     exe,
