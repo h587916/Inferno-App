@@ -6,25 +6,10 @@ block_cipher = None
 from PyInstaller.utils.hooks import collect_submodules
 hiddenimports = collect_submodules('file_manager')
 
-a = Analysis(
-    [
-        'main.py', 
-        'pages/shared/custom_combobox.py',
-        'pages/home/page.py',
-        'pages/metadata/page.py',
-        'pages/learn/page.py',
-        'pages/plotting/page.py',
-        'pages/plotting/config.py',
-        'pages/plotting/prob_functions.py',
-        'pages/plotting/plotting.py',
-        'pages/plotting/variables.py',
-        'pages/mutualinfo/page.py',
-        'pages/literature/page.py',
-        'r_integration/inferno_functions.py',
-    ],
-    pathex=['.'],
-    binaries=[],
-    datas=[
+from PyInstaller.utils.hooks import collect_data_files
+r_datas = collect_data_files('R', includes=['*'], subdir='Inferno.app/Contents/Resources/R')
+
+datas=[
         ('resources/home.svg', 'resources'),
         ('resources/check.svg', 'resources'),
         ('resources/metadata.svg', 'resources'),
@@ -45,7 +30,29 @@ a = Analysis(
         ('pages/metadata/tooltips.json', 'pages/metadata'),
         ('pages/home/content/about.txt', 'pages/home/content'),
         ('pages/home/content/features.txt', 'pages/home/content')
+    ]
+
+datas += r_datas
+
+a = Analysis(
+    [
+        'main.py', 
+        'pages/shared/custom_combobox.py',
+        'pages/home/page.py',
+        'pages/metadata/page.py',
+        'pages/learn/page.py',
+        'pages/plotting/page.py',
+        'pages/plotting/config.py',
+        'pages/plotting/prob_functions.py',
+        'pages/plotting/plotting.py',
+        'pages/plotting/variables.py',
+        'pages/mutualinfo/page.py',
+        'pages/literature/page.py',
+        'r_integration/inferno_functions.py',
     ],
+    pathex=['.'],
+    binaries=[],
+    datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],
