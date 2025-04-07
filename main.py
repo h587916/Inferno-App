@@ -5,7 +5,7 @@ import platform
 system_platform = platform.system()
 if system_platform == 'Darwin':
     if 'R_HOME' not in os.environ or not os.environ['R_HOME']:
-        os.environ['R_HOME'] = 'Library/Frameworks/R.framework/Resources'
+        os.environ['R_HOME'] = '/Library/Frameworks/R.framework/Resources'
     os.environ['PATH'] += ':/usr/local/bin:/opt/homebrew/bin'
 
 elif system_platform == 'Windows':

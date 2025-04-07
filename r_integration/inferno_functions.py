@@ -19,7 +19,6 @@ def get_physical_cores_windows():
         output = subprocess.check_output("wmic cpu get NumberOfCores", shell=True)
         lines = output.decode().strip().split("\n")
         cores = sum(int(line.strip()) for line in lines if line.strip().isdigit())
-        print(f"TESTING: {cores}")
         return cores
     except Exception as e:
         print(f"Error fetching physical cores on Windows: {e}")
@@ -28,7 +27,6 @@ def get_physical_cores_windows():
 def get_physical_cores_unix():
     try:
         output = subprocess.check_output("sysctl -n hw.physicalcpu", shell=True)
-        print(f"TESTING: {int(output.decode().strip())}")
         return int(output.decode().strip())
     except Exception as e:
         print(f"Error fetching physical cores on macOS/Linux: {e}")
