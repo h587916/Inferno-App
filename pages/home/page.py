@@ -62,7 +62,7 @@ class HomePage(QWidget):
 
         # Right: the image (outside any colored box)
         image_label = QLabel()
-        image_path = os.path.join(base_path, 'icons', 'inferno_image.png')
+        image_path = os.path.join(base_path, 'resources', 'inferno_image.png')
         pixmap = QPixmap(image_path)
         scaled_pixmap = pixmap.scaled(500, 500, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         image_label.setPixmap(scaled_pixmap)

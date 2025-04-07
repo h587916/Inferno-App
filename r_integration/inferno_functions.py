@@ -19,6 +19,7 @@ def get_physical_cores_windows():
         output = subprocess.check_output("wmic cpu get NumberOfCores", shell=True)
         lines = output.decode().strip().split("\n")
         cores = sum(int(line.strip()) for line in lines if line.strip().isdigit())
+        print(f"TESTING: {cores}")
         return cores
     except Exception as e:
         print(f"Error fetching physical cores on Windows: {e}")
@@ -27,6 +28,7 @@ def get_physical_cores_windows():
 def get_physical_cores_unix():
     try:
         output = subprocess.check_output("sysctl -n hw.physicalcpu", shell=True)
+        print(f"TESTING: {int(output.decode().strip())}")
         return int(output.decode().strip())
     except Exception as e:
         print(f"Error fetching physical cores on macOS/Linux: {e}")
@@ -64,10 +66,15 @@ def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=
         pandas2ri.deactivate()
 
 
-def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 3600, nchains: int = 60, maxhours: float = float('inf'), seed: int = None):
+def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 3600, nchains: int = 60, maxhours: float = float('inf'), seed: int = None, parallel: str = "True"):
     try:
         metadatafile_r = StrVector([metadatafile])
         datafile_r = StrVector([datafile])
+
+        if parallel == "True":
+            parallel = get_physical_cores()
+        else:
+            parallel = int(parallel)
 
         learn_args = {
             "data": datafile_r,
@@ -79,7 +86,7 @@ def run_learn(metadatafile: str, datafile: str, outputdir: str, nsamples: int = 
             "appendtimestamp": False,
             "appendinfo": False,
             "plottraces": False,
-            "parallel": get_physical_cores()
+            "parallel": parallel
         }
 
         if seed is not None:
@@ -162,7 +169,7 @@ def run_tailPr(Y: pd.DataFrame, learnt_dir: str, eq: bool, lower_tail: bool, X: 
 
 
 
-def run_mutualinfo(predictor: list, learnt_dir: str, additional_predictor: list = None, predictand: pd.DataFrame = None, nsamples: int = 3600, unit: str = "Sh", paralell: int = 12):
+def run_mutualinfo(predictor: list, learnt_dir: str, additional_predictor: list = None, predictand: pd.DataFrame = None, nsamples: int = 3600, unit: str = "Sh", parallel: int = 1):
     try:
         pandas2ri.activate()
 
@@ -178,7 +185,7 @@ def run_mutualinfo(predictor: list, learnt_dir: str, additional_predictor: list 
             learnt=learnt_r,
             nsamples=nsamples,
             unit=unit,
-            parallel=paralell, 
+            parallel=parallel, 
             silent=True
         )
 
