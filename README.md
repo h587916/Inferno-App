@@ -7,7 +7,7 @@ This repository contains a PySide6 application that integrates Python and R func
 ## Table of Contents
 1. [Prerequisites](#prerequisites)
    - [Install Python 3.12](#install-python-312)
-   - [Install R 4.4.2 and Inferno Package](#install-r-442-and-inferno-package)
+   - [Install R 4.4.3 and Inferno Package](#install-r-442-and-inferno-package)
 2. [Set R_HOME Environment Variable (if required)](#set-r_home-environment-variable-if-required)
 3. [Clone the Repository](#clone-the-repository)
 4. [Create a Python Virtual Environment](#create-a-python-virtual-environment)
