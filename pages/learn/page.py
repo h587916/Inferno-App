@@ -120,7 +120,7 @@ class LearnPage(QWidget):
         self.delete_button = QPushButton("Delete")
         self.delete_button.clicked.connect(self.delete_result)
         self.delete_button.setFixedWidth(button_width)
-        self.delete_button.setObjectName("deleteButton")
+        self.delete_button.setObjectName("redButton")
 
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(40, 0, 40, 10)  # left, top, right, bottom
@@ -268,6 +268,7 @@ class LearnPage(QWidget):
                 'nsamples': 3600,
                 'nchains': 60,
                 'maxhours': 'inf',
+                'parallel': 'True',
                 'seed': 16
             }
         self.nsamples = config.get('nsamples')
@@ -278,6 +279,7 @@ class LearnPage(QWidget):
             self.maxhours = float('inf')
         else:
             self.maxhours = float(maxhours)
+        self.parallel = config.get('parallel')
         self.seed = config.get('seed')
 
     def configure_run_learn(self):
@@ -296,11 +298,13 @@ class LearnPage(QWidget):
         else:
             maxhours_str = str(self.maxhours)
         self.maxhours_input = QLineEdit(maxhours_str)
+        self.parallel_input = QLineEdit(str(self.parallel))
         self.seed_input = QLineEdit(str(self.seed))
 
         layout.addRow("nsamples:", self.nsamples_input)
         layout.addRow("nchains:", self.nchains_input)
         layout.addRow("maxhours:", self.maxhours_input)
+        layout.addRow("parallel:", self.parallel_input)
         layout.addRow("seed:", self.seed_input)
 
         doc_link = QLabel("<a href='https://pglpm.github.io/inferno/reference/learn.html'>Parameter Documentation</a>")
@@ -342,6 +346,9 @@ class LearnPage(QWidget):
             else:
                 raise ValueError("'maxhours' must be a positive number or 'inf'.")
 
+            parallel_text = self.parallel_input.text().strip()
+            self.parallel = int(parallel_text) if parallel_text.isdigit() else "True"
+            
             seed_text = self.seed_input.text().strip()
             self.seed = int(seed_text) if seed_text.isdigit() else None
 
@@ -349,6 +356,7 @@ class LearnPage(QWidget):
                 'nsamples': self.nsamples,
                 'nchains': self.nchains,
                 'maxhours': 'inf' if self.maxhours == float('inf') else self.maxhours,
+                'parallel': self.parallel,
                 'seed': self.seed
             }
 
@@ -408,7 +416,8 @@ class LearnPage(QWidget):
             nsamples=self.nsamples, 
             nchains=self.nchains, 
             maxhours=self.maxhours, 
-            seed=self.seed
+            seed=self.seed,
+            parallel=self.parallel
         )
 
         running_message.done(0)

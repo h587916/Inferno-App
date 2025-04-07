@@ -5,12 +5,12 @@ import platform
 system_platform = platform.system()
 if system_platform == 'Darwin':
     if 'R_HOME' not in os.environ or not os.environ['R_HOME']:
-        os.environ['R_HOME'] = 'Library/Frameworks/R.framework/Resources'
+        os.environ['R_HOME'] = '/Library/Frameworks/R.framework/Resources'
     os.environ['PATH'] += ':/usr/local/bin:/opt/homebrew/bin'
 
 elif system_platform == 'Windows':
     if 'R_HOME' not in os.environ or not os.environ['R_HOME']:
-        os.environ['R_HOME'] = 'C:\\Program Files\\R\\R-4.4.2'
+        os.environ['R_HOME'] = 'C:\\Program Files\\R\\R-4.4.3'
 
 elif system_platform == 'Linux':
     if 'R_HOME' not in os.environ or not os.environ['R_HOME']:
@@ -59,7 +59,7 @@ class MainWindow(QMainWindow):
         self.file_manager = FileManager()
 
         self.setWindowTitle("Inferno App")
-        ico_icon_path = os.path.join(base_path, 'icons', 'inferno_symbol.png')
+        ico_icon_path = os.path.join(base_path, 'resources', 'inferno_symbol.png')
         self.setWindowIcon(QIcon(ico_icon_path))
         self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint | Qt.WindowCloseButtonHint)
         self.resize(1400, 700)
@@ -103,7 +103,7 @@ class MainWindow(QMainWindow):
         for page_name, (page_widget, button) in self.pages.items():
             self.stacked_widget.addWidget(page_widget)
 
-            icon_path = os.path.join(base_path, 'icons', f'{page_name.lower()}.svg')
+            icon_path = os.path.join(base_path, 'resources', f'{page_name.lower()}.svg')
             button.setIcon(QIcon(icon_path))
             button.setIconSize(icon_size)
 

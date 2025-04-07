@@ -40,15 +40,15 @@ QPushButton:pressed {
     background-color: #01579b;
 }
 
-QPushButton#clearButton {
+QPushButton#redButton {
     background-color: #d32f2f;
 }
 
-QPushButton#clearButton:hover {
+QPushButton#redButton:hover {
     background-color: #c62828;
 }
 
-QPushButton#clearButton:pressed {
+QPushButton#redButton:pressed {
     background-color: #b71c1c;
 }
 
