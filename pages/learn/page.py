@@ -120,7 +120,7 @@ class LearnPage(QWidget):
         self.delete_button = QPushButton("Delete")
         self.delete_button.clicked.connect(self.delete_result)
         self.delete_button.setFixedWidth(button_width)
-        self.delete_button.setObjectName("deleteButton")
+        self.delete_button.setObjectName("redButton")
 
         button_layout = QHBoxLayout()
         button_layout.setContentsMargins(40, 0, 40, 10)  # left, top, right, bottom

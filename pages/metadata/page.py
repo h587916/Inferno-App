@@ -114,7 +114,7 @@ class MetadataPage(QWidget):
         file_button_layout.addWidget(self.generate_button)
 
         self.delete_file_button = QPushButton("Delete")
-        self.delete_file_button.setObjectName("deleteButton")
+        self.delete_file_button.setObjectName("redButton")
         self.delete_file_button.setFixedWidth(width)
         self.delete_file_button.clicked.connect(lambda: self.delete_file(self.file_list.currentItem(), UPLOAD_FOLDER))
         file_button_layout.addWidget(self.delete_file_button)
@@ -148,7 +148,7 @@ class MetadataPage(QWidget):
         meta_button_layout.addWidget(self.rename_button)
         
         self.delete_metadata_button = QPushButton("Delete")
-        self.delete_metadata_button.setObjectName("deleteButton")
+        self.delete_metadata_button.setObjectName("redButton")
         self.delete_metadata_button.setFixedWidth(width)
         self.delete_metadata_button.clicked.connect(lambda: self.delete_file(self.metadata_list.currentItem(), METADATA_FOLDER))
         meta_button_layout.addWidget(self.delete_metadata_button)
@@ -196,7 +196,7 @@ class MetadataPage(QWidget):
 
         # Button to go back to the file management panel
         discard_button = QPushButton("Discard")
-        discard_button.setObjectName("deleteButton")
+        discard_button.setObjectName("redButton")
         discard_button.clicked.connect(self.discard_changes)
         discard_button.setFixedWidth(button_width)
         button_layout.addWidget(discard_button)
@@ -210,7 +210,7 @@ class MetadataPage(QWidget):
         button_layout.addWidget(add_column_button)
 
         remove_column_button = QPushButton("-")
-        remove_column_button.setObjectName("deleteButton")
+        remove_column_button.setObjectName("redButton")
         remove_column_button.setFixedSize(25, 25)
         remove_column_button.setToolTip("Remove 'V' column")
         remove_column_button.clicked.connect(self.remove_v_column)
