@@ -2,19 +2,20 @@ import sys
 import os
 import platform
 
-
-if getattr(sys, 'frozen', False):
-   base_path = sys._MEIPASS  # When bundled with PyInstaller
-else:
-   base_path = os.path.abspath(".")
-
-r_path = os.path.join(base_path, "R")
-
 system_platform = platform.system()
 if system_platform == 'Darwin':
-   os.environ['R_HOME'] = r_path
-   os.environ['PATH'] += f":{os.path.join(r_path, 'bin')}"
-   os.environ['DYLD_LIBRARY_PATH'] = os.path.join(r_path, 'lib')
+    if 'R_HOME' not in os.environ or not os.environ['R_HOME']:
+        os.environ['R_HOME'] = 'Library/Frameworks/R.framework/Resources'
+    os.environ['PATH'] += ':/usr/local/bin:/opt/homebrew/bin'
+
+elif system_platform == 'Windows':
+    if 'R_HOME' not in os.environ or not os.environ['R_HOME']:
+        os.environ['R_HOME'] = 'C:\\Program Files\\R\\R-4.4.3'
+
+elif system_platform == 'Linux':
+    if 'R_HOME' not in os.environ or not os.environ['R_HOME']:
+        os.environ['R_HOME'] = '/usr/lib/R'
+    os.environ['PATH'] += ':/usr/bin:/usr/local/bin'
 
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QStackedWidget, QHBoxLayout, QLabel, QStyle, QProxyStyle, QStyleOptionViewItem
