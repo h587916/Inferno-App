@@ -3,11 +3,16 @@ import json
 import shutil
 import importlib.resources
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QListWidget, 
-                                QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem, QFileDialog, QHBoxLayout, QLabel, QGridLayout)
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QListWidget,
+                            QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem, QFileDialog, QHBoxLayout, QLabel, QGridLayout)
 from r_integration.inferno_functions import run_learn
 from appdirs import user_data_dir
 from pages.shared.custom_combobox import CustomComboBox
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QThread, Signal, QObject
+import rpy2.robjects.pandas2ri as pandas2ri
+import contextvars
+from PySide6.QtCore import QThread, Signal, QObject
 
 
 # Define the base directory paths (consistent with file_manager.py)
@@ -16,6 +21,43 @@ UPLOAD_FOLDER = os.path.join(APP_DIR, 'uploads')
 METADATA_FOLDER = os.path.join(APP_DIR, 'metadata')
 LEARNT_FOLDER = os.path.join(APP_DIR, 'learnt')
 USER_CONFIG_PATH = os.path.join(APP_DIR, 'config/learn_config.json')
+
+
+class LearnWorker(QObject):
+    finished = Signal(object)
+    error = Signal(str)
+
+
+    def __init__(self, metadatafile, datafile, outputdir, nsamples, nchains, maxhours, seed, parallel):
+        super().__init__()
+        self.metadatafile = metadatafile
+        self.datafile = datafile
+        self.outputdir = outputdir
+        self.nsamples = nsamples
+        self.nchains = nchains
+        self.maxhours = maxhours
+        self.seed = seed
+        self.parallel = parallel
+
+
+    def run(self):
+        try:
+            pandas2ri.activate() 
+
+            result = run_learn(
+                metadatafile=self.metadatafile,
+                datafile=self.datafile,
+                outputdir=self.outputdir,
+                nsamples=self.nsamples,
+                nchains=self.nchains,
+                maxhours=self.maxhours,
+                seed=self.seed,
+                parallel=self.parallel
+            )
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
+
 
 class LearnPage(QWidget):
     def __init__(self, file_manager):
@@ -188,7 +230,7 @@ class LearnPage(QWidget):
             self.results_list.addItems(self.file_manager.learnt_folders)
         else:
             self.results_list.addItem("No result folders available")
-    
+
     def rename_result(self):
         """Rename the selected result folder."""
         selected_item = self.results_list.currentItem()
@@ -224,8 +266,8 @@ class LearnPage(QWidget):
         selected_item = self.results_list.currentItem()
         if selected_item:
             folder_name = selected_item.text()
-            confirm = QMessageBox.question(self, "Delete Folder", f"Are you sure you want to delete the folder '{folder_name}'?", 
-                                           QMessageBox.Yes | QMessageBox.No)
+            confirm = QMessageBox.question(self, "Delete Folder", f"Are you sure you want to delete the folder '{folder_name}'?",
+                                            QMessageBox.Yes | QMessageBox.No)
             if confirm == QMessageBox.Yes:
                 folder_path = os.path.join(LEARNT_FOLDER, folder_name)
                 shutil.rmtree(folder_path)
@@ -379,9 +421,9 @@ class LearnPage(QWidget):
             return
 
         confirmation = QMessageBox.question(
-            self, 
-            "Confirm", 
-            f"Run Monte Carlo computation with:\nMetadata: {metadata_file}\nData: {csv_file}", 
+            self,
+            "Confirm",
+            f"Run Monte Carlo computation with:\nMetadata: {metadata_file}\nData: {csv_file}",
             QMessageBox.Yes | QMessageBox.No
         )
         if confirmation == QMessageBox.No:
@@ -399,31 +441,64 @@ class LearnPage(QWidget):
             )
             if overwrite_confirmation == QMessageBox.No:
                 return
-
-        running_message = QMessageBox(self)
-        running_message.setWindowTitle("Running")
-        running_message.setText("Running the Monte Carlo computation... \n This can take a few minutes, so you might want\n to go grab a cup of coffee while waiting.")
-        running_message.setStandardButtons(QMessageBox.NoButton)
-        running_message.show()
-
+            
         csv_file_path = os.path.join(UPLOAD_FOLDER, csv_file)
         metadata_file_path = os.path.join(METADATA_FOLDER, metadata_file)
 
-        result = run_learn(
-            metadatafile=metadata_file_path, 
-            datafile=csv_file_path, 
-            outputdir=outputdir, 
-            nsamples=self.nsamples, 
-            nchains=self.nchains, 
-            maxhours=self.maxhours, 
+        self.running_message = QMessageBox(self)
+        self.running_message.setWindowTitle("Running")
+        self.running_message.setText(f"Running the Monte Carlo computation...\n")
+        self.running_message.setStandardButtons(QMessageBox.NoButton)
+        self.running_message.show()
+        
+        QApplication.processEvents()
+
+        context = contextvars.copy_context()
+
+        self.learn_thread = QThread()
+        self.learn_worker = LearnWorker(
+            metadatafile=metadata_file_path,
+            datafile=csv_file_path,
+            outputdir=outputdir,
+            nsamples=self.nsamples,
+            nchains=self.nchains,
+            maxhours=self.maxhours,
             seed=self.seed,
             parallel=self.parallel
         )
+        self.learn_worker.moveToThread(self.learn_thread)
 
-        running_message.done(0)
+        self.learn_thread.started.connect(lambda: context.run(self.learn_worker.run))
 
-        if result:
-            QMessageBox.information(self, "Success", f"Monte Carlo computation runned successfully!\nThe results are saved in the '{datafile_name}' folder.")
+        self.learn_worker.finished.connect(self.on_learn_success)
+        self.learn_worker.error.connect(self.on_learn_error)
+        self.learn_worker.finished.connect(self.learn_thread.quit)
+        self.learn_worker.error.connect(self.learn_thread.quit)
+        self.learn_worker.finished.connect(self.learn_worker.deleteLater)
+        self.learn_worker.error.connect(self.learn_worker.deleteLater)
+        self.learn_thread.finished.connect(self.learn_thread.deleteLater)
+
+        self.learn_thread.start()
+
+
+    def on_learn_success(self, result):
+        self.running_message.done(0)
+        
+        outputdir = self.learn_worker.outputdir
+        learnt_file = os.path.join(outputdir, "learnt.rds")
+        if os.path.exists(learnt_file):
+            QMessageBox.information(self, "Success", "Monte Carlo computation finished successfully!")
             self.file_manager.refresh()
         else:
-            QMessageBox.critical(self, "Error", "An error occurred while running the computation")
+            QMessageBox.critical(self, "Error", "Computation finished, but 'learnt.rds' was not found.")
+
+    def on_learn_error(self, error_msg):
+        self.running_message.done(0)
+
+        if hasattr(self, 'learn_worker') and os.path.exists(self.learn_worker.outputdir):
+            try:
+                shutil.rmtree(self.learn_worker.outputdir)
+            except Exception as e:
+                print(f"Failed to clean up incomplete output folder: {e}")
+
+        QMessageBox.critical(self, "Error", f"An error occurred:\n\n{error_msg}")
