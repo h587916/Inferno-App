@@ -35,6 +35,68 @@ def get_physical_cores_unix():
 
 inferno = importr('inferno')
 
+def run_learn_in_r_windows(data_path, metadata_path, output_dir, nsamples=3600, nchains=60, parallel=12, seed=None):
+    os.makedirs(output_dir, exist_ok=True)
+    r_script_path = os.path.join(output_dir, "run_learn_script.R")
+
+    data_path_r = os.path.normpath(data_path).replace("\\", "/")
+    metadata_path_r = os.path.normpath(metadata_path).replace("\\", "/")
+    output_dir_r = os.path.normpath(output_dir).replace("\\", "/")
+
+    r_lines = [
+        "library(inferno)",
+        f"set.seed({seed})" if seed else "",
+        "",
+        'cat("Running the learn() function:\\n\\n")',
+        'cat("inferno::learn(\\n")',
+        f'cat("  data = \\"{data_path_r}\\",\\n")',
+        f'cat("  metadata = \\"{metadata_path_r}\\",\\n")',
+        f'cat("  outputdir = \\"{output_dir_r}\\",\\n")',
+        f'cat("  nsamples = {nsamples},\\n")',
+        f'cat("  nchains = {nchains},\\n")',
+        f'cat("  parallel = {parallel},\\n")',
+        'cat("  appendtimestamp = FALSE,\\n")',
+        'cat("  appendinfo = FALSE,\\n")',
+        'cat("  output = \\"directory\\",\\n")',
+        'cat("  plottraces = FALSE\\n")',
+        'cat(")\\n\\n")',
+        '',
+        'inferno::learn(',
+        f'  data = "{data_path_r}",',
+        f'  metadata = "{metadata_path_r}",',
+        f'  outputdir = "{output_dir_r}",',
+        f'  nsamples = {nsamples},',
+        f'  nchains = {nchains},',
+        f'  parallel = {parallel},',
+        f'  appendtimestamp = FALSE,',
+        f'  appendinfo = FALSE,',
+        f'  output = "directory",',
+        f'  plottraces = FALSE',
+        ')',
+        'cat("\\n-----------------------------------------\\n\\n")',
+        'cat("Monte Carlo Computation ran successfully!\\n")',
+        'cat("You can now close the terminal and return to the app.\\n")',
+        'cat("\\n-----------------------------------------\\n")'
+    ]
+    r_script = "\n".join([line for line in r_lines if line.strip() != ""])
+
+    with open(r_script_path, 'w') as f:
+        f.write(r_script)
+
+    # Construct command string
+    command = f'Rscript "{r_script_path}"'
+
+    # Launch it in a new cmd window
+    try:
+        subprocess.Popen(
+            f'start cmd.exe /k "{command}"',
+            shell=True
+        )
+        return True, f"Launched R script in new terminal window."
+    except Exception as e:
+        return False, str(e)
+
+
 def build_metadata(csv_file_path, output_file_name, includevrt=None, excludevrt=None):
     try:
         pandas2ri.activate()

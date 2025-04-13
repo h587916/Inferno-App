@@ -311,7 +311,8 @@ class LearnPage(QWidget):
                 'nchains': 60,
                 'maxhours': 'inf',
                 'parallel': 'True',
-                'seed': 16
+                'seed': 16,
+                'terminal_mode': 'No'
             }
         self.nsamples = config.get('nsamples')
         self.nchains = config.get('nchains')
@@ -323,12 +324,13 @@ class LearnPage(QWidget):
             self.maxhours = float(maxhours)
         self.parallel = config.get('parallel')
         self.seed = config.get('seed')
+        self.terminal_mode = config.get('terminal_mode', 'No')
 
     def configure_run_learn(self):
         """Open a dialog to configure run_learn parameters."""
         dialog = QDialog(self)
         dialog.setFixedWidth(270)
-        dialog.setFixedHeight(170)
+        dialog.setFixedHeight(250)
         dialog.setWindowTitle("Configure Learn Function Parameters")
 
         layout = QFormLayout()
@@ -343,11 +345,16 @@ class LearnPage(QWidget):
         self.parallel_input = QLineEdit(str(self.parallel))
         self.seed_input = QLineEdit(str(self.seed))
 
+        self.terminal_mode_input = CustomComboBox()
+        self.terminal_mode_input.addItems(["No", "Yes"])
+        self.terminal_mode_input.setCurrentText(self.terminal_mode)
+
         layout.addRow("nsamples:", self.nsamples_input)
         layout.addRow("nchains:", self.nchains_input)
         layout.addRow("maxhours:", self.maxhours_input)
         layout.addRow("parallel:", self.parallel_input)
         layout.addRow("seed:", self.seed_input)
+        layout.addRow("Terminal Mode:", self.terminal_mode_input)
 
         doc_link = QLabel("<a href='https://pglpm.github.io/inferno/reference/learn.html'>Parameter Documentation</a>")
         doc_link.setOpenExternalLinks(True)
@@ -394,12 +401,16 @@ class LearnPage(QWidget):
             seed_text = self.seed_input.text().strip()
             self.seed = int(seed_text) if seed_text.isdigit() else None
 
+            terminal_mode_text = self.terminal_mode_input.currentText().strip()
+            self.terminal_mode = terminal_mode_text
+
             config = {
                 'nsamples': self.nsamples,
                 'nchains': self.nchains,
                 'maxhours': 'inf' if self.maxhours == float('inf') else self.maxhours,
                 'parallel': self.parallel,
-                'seed': self.seed
+                'seed': self.seed,
+                'terminal_mode': self.terminal_mode
             }
 
             with open(USER_CONFIG_PATH, 'w') as f:
@@ -445,12 +456,33 @@ class LearnPage(QWidget):
         csv_file_path = os.path.join(UPLOAD_FOLDER, csv_file)
         metadata_file_path = os.path.join(METADATA_FOLDER, metadata_file)
 
+        if self.terminal_mode.lower() == "yes":
+            try:
+                from r_integration.inferno_functions import run_learn_in_r_windows
+
+                success, msg = run_learn_in_r_windows(
+                    data_path=csv_file_path,
+                    metadata_path=metadata_file_path,
+                    output_dir=outputdir,
+                    seed=self.seed
+                )
+
+                if success:
+                    QMessageBox.information(self, "Launched in R", msg)
+                else:
+                    QMessageBox.critical(self, "Error", f"Failed to launch R script:\n\n{msg}")
+                return
+
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Unexpected error launching R:\n\n{str(e)}")
+                return
+
         self.running_message = QMessageBox(self)
         self.running_message.setWindowTitle("Running")
         self.running_message.setText(f"Running the Monte Carlo computation...\n")
         self.running_message.setStandardButtons(QMessageBox.NoButton)
         self.running_message.show()
-        
+
         QApplication.processEvents()
 
         context = contextvars.copy_context()
