@@ -5,7 +5,7 @@ import importlib.resources
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QPushButton, QMessageBox, QListWidget,
                             QInputDialog, QSizePolicy, QDialog, QFormLayout, QLineEdit, QSpacerItem, QFileDialog, QHBoxLayout, QLabel, QGridLayout)
-from r_integration.inferno_functions import run_learn
+from r_integration.inferno_functions import run_learn, run_learn_in_terminal
 from appdirs import user_data_dir
 from pages.shared.custom_combobox import CustomComboBox
 from PySide6.QtWidgets import QApplication
@@ -13,6 +13,7 @@ from PySide6.QtCore import QThread, Signal, QObject
 import rpy2.robjects.pandas2ri as pandas2ri
 import contextvars
 from PySide6.QtCore import QThread, Signal, QObject
+import subprocess
 
 
 # Define the base directory paths (consistent with file_manager.py)
@@ -27,7 +28,6 @@ class LearnWorker(QObject):
     finished = Signal(object)
     error = Signal(str)
 
-
     def __init__(self, metadatafile, datafile, outputdir, nsamples, nchains, maxhours, seed, parallel):
         super().__init__()
         self.metadatafile = metadatafile
@@ -38,7 +38,6 @@ class LearnWorker(QObject):
         self.maxhours = maxhours
         self.seed = seed
         self.parallel = parallel
-
 
     def run(self):
         try:
@@ -199,7 +198,7 @@ class LearnPage(QWidget):
         self.file_manager.refresh()
 
 
-    ### HELPER FUNCTIONS ###
+    ### FILE MANAGING ###
 
     def load_files(self):
         """Load CSV and metadata files from FileManager."""
@@ -299,6 +298,9 @@ class LearnPage(QWidget):
         metadata_selected = self.metadata_combobox.currentText() != "No metadata files available"
         self.run_button.setEnabled(csv_selected and metadata_selected)
 
+
+    ### CONFIG ###
+
     def load_configuration(self):
         """Load configuration from JSON"""
         if os.path.exists(USER_CONFIG_PATH):
@@ -310,8 +312,8 @@ class LearnPage(QWidget):
                 'nsamples': 3600,
                 'nchains': 60,
                 'maxhours': 'inf',
-                'parallel': 'True',
                 'seed': 16,
+                'parallel': 'No',
                 'terminal_mode': 'No'
             }
         self.nsamples = config.get('nsamples')
@@ -322,7 +324,7 @@ class LearnPage(QWidget):
             self.maxhours = float('inf')
         else:
             self.maxhours = float(maxhours)
-        self.parallel = config.get('parallel')
+        self.parallel = config.get('parallel', 'No')
         self.seed = config.get('seed')
         self.terminal_mode = config.get('terminal_mode', 'No')
 
@@ -342,8 +344,14 @@ class LearnPage(QWidget):
         else:
             maxhours_str = str(self.maxhours)
         self.maxhours_input = QLineEdit(maxhours_str)
-        self.parallel_input = QLineEdit(str(self.parallel))
         self.seed_input = QLineEdit(str(self.seed))
+
+        self.parallel_input = CustomComboBox()
+        self.parallel_input.addItem("No")
+        max_cores = self.get_physical_cores()
+        for i in range(1, max_cores + 1):
+            self.parallel_input.addItem(str(i))
+        self.parallel_input.setCurrentText(str(self.parallel))
 
         self.terminal_mode_input = CustomComboBox()
         self.terminal_mode_input.addItems(["No", "Yes"])
@@ -352,8 +360,8 @@ class LearnPage(QWidget):
         layout.addRow("nsamples:", self.nsamples_input)
         layout.addRow("nchains:", self.nchains_input)
         layout.addRow("maxhours:", self.maxhours_input)
-        layout.addRow("parallel:", self.parallel_input)
         layout.addRow("seed:", self.seed_input)
+        layout.addRow("parallel:", self.parallel_input)
         layout.addRow("Terminal Mode:", self.terminal_mode_input)
 
         doc_link = QLabel("<a href='https://pglpm.github.io/inferno/reference/learn.html'>Parameter Documentation</a>")
@@ -395,8 +403,8 @@ class LearnPage(QWidget):
             else:
                 raise ValueError("'maxhours' must be a positive number or 'inf'.")
 
-            parallel_text = self.parallel_input.text().strip()
-            self.parallel = int(parallel_text) if parallel_text.isdigit() else "True"
+            parallel_text = self.parallel_input.currentText().strip()
+            self.parallel = parallel_text
             
             seed_text = self.seed_input.text().strip()
             self.seed = int(seed_text) if seed_text.isdigit() else None
@@ -408,8 +416,8 @@ class LearnPage(QWidget):
                 'nsamples': self.nsamples,
                 'nchains': self.nchains,
                 'maxhours': 'inf' if self.maxhours == float('inf') else self.maxhours,
-                'parallel': self.parallel,
                 'seed': self.seed,
+                'parallel': self.parallel,
                 'terminal_mode': self.terminal_mode
             }
 
@@ -419,6 +427,9 @@ class LearnPage(QWidget):
 
         except ValueError as e:
             QMessageBox.warning(self, "Invalid Input", str(e))
+
+
+    ### RUN LEARN FUNCTION ###
 
     def run_learn_function(self):
         """Run the learn function with the selected CSV and Metadata files."""
@@ -455,15 +466,17 @@ class LearnPage(QWidget):
             
         csv_file_path = os.path.join(UPLOAD_FOLDER, csv_file)
         metadata_file_path = os.path.join(METADATA_FOLDER, metadata_file)
-
+        
         if self.terminal_mode.lower() == "yes":
             try:
-                from r_integration.inferno_functions import run_learn_in_r_windows
-
-                success, msg = run_learn_in_r_windows(
+                success, msg = run_learn_in_terminal(
                     data_path=csv_file_path,
                     metadata_path=metadata_file_path,
                     output_dir=outputdir,
+                    nsamples=self.nsamples,
+                    nchains=self.nchains,
+                    maxhours=self.maxhours,
+                    parallel=self.parallel,
                     seed=self.seed
                 )
 
@@ -479,7 +492,7 @@ class LearnPage(QWidget):
 
         self.running_message = QMessageBox(self)
         self.running_message.setWindowTitle("Running")
-        self.running_message.setText(f"Running the Monte Carlo computation...\n")
+        self.running_message.setText(f"Running the Monte Carlo computation...\nThis can take several minutes.")
         self.running_message.setStandardButtons(QMessageBox.NoButton)
         self.running_message.show()
 
@@ -534,3 +547,32 @@ class LearnPage(QWidget):
                 print(f"Failed to clean up incomplete output folder: {e}")
 
         QMessageBox.critical(self, "Error", f"An error occurred:\n\n{error_msg}")
+
+
+    ### DETECT AVAILABLE CORES ###
+
+    def get_physical_cores(self):
+        if os.name == 'nt':  # Windows
+            return self.get_physical_cores_windows()
+        elif os.name == 'posix':  # macOS/Linux
+            return self.get_physical_cores_unix()
+        else:
+            return 1
+
+    def get_physical_cores_windows(self):
+        try:
+            output = subprocess.check_output("wmic cpu get NumberOfCores", shell=True)
+            lines = output.decode().strip().split("\n")
+            cores = sum(int(line.strip()) for line in lines if line.strip().isdigit())
+            return cores
+        except Exception as e:
+            print(f"Error fetching physical cores on Windows: {e}")
+            return None
+
+    def get_physical_cores_unix(self):
+        try:
+            output = subprocess.check_output("sysctl -n hw.physicalcpu", shell=True)
+            return int(output.decode().strip())
+        except Exception as e:
+            print(f"Error fetching physical cores on macOS/Linux: {e}")
+            return None
