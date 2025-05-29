@@ -7,7 +7,7 @@ This repository contains a PySide6 application that integrates Python and R func
 ## Table of Contents
 1. [Prerequisites](#prerequisites)
    - [Install Python 3.12](#install-python-312)
-   - [Install R 4.4.3 and Inferno Package](#install-r-442-and-inferno-package)
+   - [Install R and Inferno Package](#install-r-and-inferno-package)
 2. [Set R_HOME Environment Variable (if required)](#set-r_home-environment-variable-if-required)
 3. [Clone the Repository](#clone-the-repository)
 4. [Create a Python Virtual Environment](#create-a-python-virtual-environment)
@@ -51,11 +51,11 @@ This repository contains a PySide6 application that integrates Python and R func
 
 ---
 
-### Install R 4.4.3 and Inferno Package
+### Install R and Inferno Package
 
-You need to install [R 4.4.3](https://cran.r-project.org/) and then install the **Inferno** package from GitHub.
+You need to install [R](https://cran.r-project.org/) and then install the **Inferno** package from GitHub.
 
-1. **Download and install R 4.4.3**:
+1. **Download and install R**:
    - [Windows](https://cran.r-project.org/bin/windows/base/)
    - [macOS](https://cran.r-project.org/bin/macosx/)
    - [Linux](https://cran.r-project.org/bin/linux/)
